@@ -1,125 +1,59 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Capcom LCM Editor</title>
-<style>
-body{
-    font-family: Arial;
-    background:#111;
-    color:#eee;
-    padding:20px;
-}
-input,button{
-    padding:6px;
-    margin:5px;
-}
-.box{
-    background:#222;
-    padding:15px;
-    border-radius:6px;
-    width:350px;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ace Attorney Uploads</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: #1e1e2e;
+            color: white;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #282a36;
+            border-radius: 12px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.5);
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        li {
+            margin: 15px 0;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            font-size: 16px;
+            text-decoration: none;
+            color: white;
+            background: #ff6b81;
+            border-radius: 8px;
+            transition: 0.3s;
+        }
+        .button:hover {
+            background: #ff4757;
+        }
+    </style>
 </head>
 <body>
-
-<h2>LCM Camera Editor</h2>
-
-<div class="box">
-<input type="file" id="fileInput"><br>
-
-<label>Aspect Ratio</label><br>
-<input type="number" id="aspect" step="0.01"><br>
-
-<label>Camera Param 1</label><br>
-<input type="number" id="p1" step="0.01"><br>
-
-<label>Camera Param 2</label><br>
-<input type="number" id="p2" step="0.01"><br>
-
-<label>Camera X</label><br>
-<input type="number" id="x" step="0.01"><br>
-
-<label>Camera Y</label><br>
-<input type="number" id="y" step="0.01"><br>
-
-<label>Rotation X</label><br>
-<input type="number" id="rx" step="0.0001"><br>
-
-<label>Rotation Y</label><br>
-<input type="number" id="ry" step="0.0001"><br>
-
-<label>FOV</label><br>
-<input type="number" id="fov" step="0.1"><br>
-
-<button onclick="saveFile()">Download Modified File</button>
-</div>
-
-<script>
-let buffer;
-
-const offsets = {
-aspect:1072,
-p1:1096,
-p2:1100,
-x:1132,
-y:1136,
-rx:1168,
-ry:1172,
-fov:1192
-};
-
-document.getElementById("fileInput").addEventListener("change",function(e){
-
-let file=e.target.files[0];
-let reader=new FileReader();
-
-reader.onload=function(){
-buffer=reader.result;
-
-let view=new DataView(buffer);
-
-for(let k in offsets){
-document.getElementById(k).value=view.getFloat32(offsets[k],true);
-}
-
-};
-
-reader.readAsArrayBuffer(file);
-
-});
-
-function saveFile(){
-
-let view=new DataView(buffer);
-
-for(let k in offsets){
-let v=parseFloat(document.getElementById(k).value);
-view.setFloat32(offsets[k],v,true);
-}
-
-let blob=new Blob([buffer]);
-let a=document.createElement("a");
-a.href=URL.createObjectURL(blob);
-a.download="edited.lcm";
-a.click();
-
-}
-</script>
-
-</body>
-</html>animate();
-
-window.addEventListener("resize",()=>{
-
-camera.aspect = window.innerWidth/window.innerHeight;
-camera.updateProjectionMatrix();
-renderer.setSize(window.innerWidth,window.innerHeight);
-
-});
-
-</script>
-
+    <div class="container">
+        <h1>📁 Ace Attorney Uploads</h1>
+        <ul>
+            <li><a href="music/index.html" class="button">🎵 Music</a></li>
+            <li><a href="sound-effects/index.html" class="button">🔊 Sound Effects</a></li>
+            <li><a href="voice-clips/index.html" class="button">🎙 Voice Clips</a></li>
+            <li><a href="svgs/index.html" class="button">🖼 SVGs</a></li>
+        </ul>
+    </div>
 </body>
 </html>
