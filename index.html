@@ -1,59 +1,483 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ace Attorney Uploads</title>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Poppins', sans-serif;
-            background: #1e1e2e;
-            color: white;
-            text-align: center;
-            margin: 0;
-            padding: 0;
-        }
-        .container {
-            max-width: 600px;
-            margin: 50px auto;
-            padding: 20px;
-            background: #282a36;
-            border-radius: 12px;
-            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.5);
-        }
-        ul {
-            list-style: none;
-            padding: 0;
-        }
-        li {
-            margin: 15px 0;
-        }
-        .button {
-            display: inline-block;
-            padding: 10px 20px;
-            font-size: 16px;
-            text-decoration: none;
-            color: white;
-            background: #ff6b81;
-            border-radius: 8px;
-            transition: 0.3s;
-        }
-        .button:hover {
-            background: #ff4757;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VP8 ⇄ MP4 Converter</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #181b22;
+    --panel-2: #20242e;
+    --border: #2c313d;
+    --accent: #6ee7b7;
+    --accent-2: #60a5fa;
+    --text: #e6e8ee;
+    --text-dim: #9aa3b2;
+    --danger: #f87171;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: linear-gradient(135deg, #0f1115 0%, #14171f 100%);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  h1 {
+    font-size: 1.6rem;
+    margin: 0 0 4px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    display: inline-block;
+  }
+  .sub { color: var(--text-dim); margin: 0 0 24px; font-size: 0.95rem; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 18px;
+  }
+
+  .mode-toggle {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .mode-toggle button {
+    flex: 1;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text-dim);
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .mode-toggle button.active {
+    border-color: var(--accent-2);
+    color: var(--text);
+    background: linear-gradient(135deg, rgba(96,165,250,0.18), rgba(110,231,183,0.10));
+  }
+
+  .dropzone {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 32px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    color: var(--text-dim);
+  }
+  .dropzone.dragover, .dropzone:hover {
+    border-color: var(--accent-2);
+    background: rgba(96,165,250,0.05);
+  }
+  .dropzone strong { color: var(--text); }
+  input[type=file] { display: none; }
+
+  .filename {
+    margin-top: 12px;
+    font-size: 0.9rem;
+    color: var(--accent);
+    word-break: break-all;
+  }
+
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  select, label.opt {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.9rem;
+  }
+
+  .convert-btn {
+    margin-top: 16px;
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    color: #0b1116;
+    transition: opacity 0.15s, transform 0.05s;
+  }
+  .convert-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .convert-btn:active:not(:disabled) { transform: scale(0.99); }
+
+  .progress-wrap {
+    margin-top: 14px;
+    display: none;
+  }
+  .progress-bar-bg {
+    width: 100%;
+    height: 10px;
+    border-radius: 6px;
+    background: var(--panel-2);
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    transition: width 0.2s;
+  }
+  .progress-label {
+    margin-top: 6px;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    white-space: pre-wrap;
+    max-height: 90px;
+    overflow-y: auto;
+  }
+
+  .preview-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  @media (min-width: 640px) {
+    .preview-grid { grid-template-columns: 1fr 1fr; }
+  }
+  .preview-box h3 {
+    margin: 0 0 8px;
+    font-size: 0.95rem;
+    color: var(--text-dim);
+    font-weight: 500;
+  }
+  video {
+    width: 100%;
+    border-radius: 10px;
+    background: #000;
+    display: block;
+    border: 1px solid var(--border);
+  }
+
+  .download-link {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 10px 18px;
+    border-radius: 8px;
+    background: var(--panel-2);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+  .download-link:hover { background: rgba(110,231,183,0.08); }
+
+  .status {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin-top: 10px;
+  }
+  .status.error { color: var(--danger); }
+  .status.ok { color: var(--accent); }
+
+  .hint {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 10px;
+    line-height: 1.5;
+  }
+
+  .badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+</style>
 </head>
 <body>
-    <div class="container">
-        <h1>📁 Ace Attorney Uploads</h1>
-        <ul>
-            <li><a href="music/index.html" class="button">🎵 Music</a></li>
-            <li><a href="sound-effects/index.html" class="button">🔊 Sound Effects</a></li>
-            <li><a href="voice-clips/index.html" class="button">🎙 Voice Clips</a></li>
-            <li><a href="svgs/index.html" class="button">🖼 SVGs</a></li>
-        </ul>
+<div class="wrap">
+  <h1>VP8 ⇄ MP4 Converter</h1>
+  <p class="sub">Runs entirely in your browser via ffmpeg.wasm — no upload to any server.</p>
+
+  <div class="card">
+    <div class="mode-toggle">
+      <button id="modeToMp4" class="active">VP8 / IVF → MP4</button>
+      <button id="modeToVp8">MP4 → VP8 / IVF (.webm)</button>
     </div>
+
+    <div class="dropzone" id="dropzone">
+      <div id="dzText"><strong>Click to choose a file</strong> or drag &amp; drop it here<br>(.vp8, .ivf, .webm, .mp4)</div>
+      <input type="file" id="fileInput" accept=".vp8,.ivf,.webm,.mp4,video/*">
+      <div class="filename" id="filename"></div>
+    </div>
+
+    <div class="row" style="margin-top:14px;">
+      <label class="opt">
+        Output framerate (if needed for raw VP8):
+        <select id="fpsSelect">
+          <option value="auto">Auto</option>
+          <option value="24">24</option>
+          <option value="25">25</option>
+          <option value="30" selected>30</option>
+          <option value="60">60</option>
+        </select>
+      </label>
+    </div>
+
+    <button class="convert-btn" id="convertBtn" disabled>Load ffmpeg.wasm &amp; Convert</button>
+
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-bar-bg"><div class="progress-bar" id="progressBar"></div></div>
+      <div class="progress-label" id="progressLabel"></div>
+    </div>
+
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="card">
+    <div class="preview-grid">
+      <div class="preview-box">
+        <h3>Input preview <span class="badge" id="inputBadge">none loaded</span></h3>
+        <video id="inputVideo" controls muted></video>
+      </div>
+      <div class="preview-box">
+        <h3>Output preview <span class="badge" id="outputBadge">not converted</span></h3>
+        <video id="outputVideo" controls muted></video>
+        <a id="downloadLink" class="download-link" style="display:none;" download>Download result</a>
+      </div>
+    </div>
+    <div class="hint">
+      Note: raw <code>.vp8</code>/<code>.ivf</code> streams generally can't be previewed directly by the browser's
+      &lt;video&gt; element (no container audio/headers some players expect), so the input preview may stay blank for those —
+      conversion will still work. MP4/WebM inputs preview normally. The "framerate" option is used only when the
+      input is a headerless/odd raw stream and ffmpeg needs a hint; for normal .ivf/.webm/.mp4 it's ignored.
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script type="module">
+import { FFmpeg } from "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js";
+import { fetchFile, toBlobURL } from "https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js";
+
+const dropzone = document.getElementById("dropzone");
+const fileInput = document.getElementById("fileInput");
+const filenameEl = document.getElementById("filename");
+const convertBtn = document.getElementById("convertBtn");
+const statusEl = document.getElementById("status");
+const progressWrap = document.getElementById("progressWrap");
+const progressBar = document.getElementById("progressBar");
+const progressLabel = document.getElementById("progressLabel");
+const inputVideo = document.getElementById("inputVideo");
+const outputVideo = document.getElementById("outputVideo");
+const inputBadge = document.getElementById("inputBadge");
+const outputBadge = document.getElementById("outputBadge");
+const downloadLink = document.getElementById("downloadLink");
+const fpsSelect = document.getElementById("fpsSelect");
+const modeToMp4 = document.getElementById("modeToMp4");
+const modeToVp8 = document.getElementById("modeToVp8");
+
+let mode = "toMp4"; // or "toVp8"
+let currentFile = null;
+let ffmpeg = null;
+let ffmpegLoaded = false;
+
+modeToMp4.addEventListener("click", () => setMode("toMp4"));
+modeToVp8.addEventListener("click", () => setMode("toVp8"));
+
+function setMode(m) {
+  mode = m;
+  modeToMp4.classList.toggle("active", m === "toMp4");
+  modeToVp8.classList.toggle("active", m === "toVp8");
+  document.getElementById("dzText").innerHTML = m === "toMp4"
+    ? "<strong>Click to choose a file</strong> or drag &amp; drop it here<br>(.vp8, .ivf, .webm)"
+    : "<strong>Click to choose a file</strong> or drag &amp; drop it here<br>(.mp4, .mov, .webm)";
+  updateConvertLabel();
+}
+
+function updateConvertLabel() {
+  if (!ffmpegLoaded) {
+    convertBtn.textContent = "Load ffmpeg.wasm & Convert";
+  } else {
+    convertBtn.textContent = mode === "toMp4" ? "Convert to MP4" : "Convert to VP8 (WebM)";
+  }
+  convertBtn.disabled = !currentFile;
+}
+
+dropzone.addEventListener("click", () => fileInput.click());
+dropzone.addEventListener("dragover", e => { e.preventDefault(); dropzone.classList.add("dragover"); });
+dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragover"));
+dropzone.addEventListener("drop", e => {
+  e.preventDefault();
+  dropzone.classList.remove("dragover");
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener("change", () => {
+  if (fileInput.files.length) handleFile(fileInput.files[0]);
+});
+
+function handleFile(file) {
+  currentFile = file;
+  filenameEl.textContent = `Selected: ${file.name} (${(file.size/1024/1024).toFixed(2)} MB)`;
+  updateConvertLabel();
+  setStatus("", "");
+  outputVideo.removeAttribute("src");
+  outputVideo.load();
+  outputBadge.textContent = "not converted";
+  downloadLink.style.display = "none";
+
+  // try to preview input directly (works for mp4/webm; raw vp8/ivf likely won't render)
+  const url = URL.createObjectURL(file);
+  inputVideo.src = url;
+  inputBadge.textContent = "loading…";
+  inputVideo.onloadeddata = () => { inputBadge.textContent = "preview ok"; };
+  inputVideo.onerror = () => { inputBadge.textContent = "no native preview (raw stream)"; inputVideo.removeAttribute("src"); };
+}
+
+function setStatus(msg, type) {
+  statusEl.textContent = msg;
+  statusEl.className = "status" + (type ? " " + type : "");
+}
+
+async function loadFFmpeg() {
+  if (ffmpegLoaded) return;
+  setStatus("Loading ffmpeg.wasm core (~30MB, one-time)…", "");
+  progressWrap.style.display = "block";
+  progressBar.style.width = "5%";
+  progressLabel.textContent = "Fetching ffmpeg-core...";
+
+  ffmpeg = new FFmpeg();
+  ffmpeg.on("log", ({ message }) => {
+    progressLabel.textContent = message;
+  });
+  ffmpeg.on("progress", ({ progress }) => {
+    const pct = Math.min(100, Math.max(0, Math.round(progress * 100)));
+    progressBar.style.width = pct + "%";
+  });
+
+  const baseURL = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm";
+  await ffmpeg.load({
+    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+  });
+
+  ffmpegLoaded = true;
+  progressBar.style.width = "100%";
+  setStatus("ffmpeg.wasm loaded.", "ok");
+  updateConvertLabel();
+}
+
+convertBtn.addEventListener("click", async () => {
+  if (!currentFile) return;
+  convertBtn.disabled = true;
+  try {
+    if (!ffmpegLoaded) {
+      await loadFFmpeg();
+    }
+    await convert();
+  } catch (err) {
+    console.error(err);
+    setStatus("Error: " + err.message, "error");
+  } finally {
+    convertBtn.disabled = !currentFile;
+    updateConvertLabel();
+  }
+});
+
+async function convert() {
+  progressWrap.style.display = "block";
+  progressBar.style.width = "0%";
+  setStatus("Converting…", "");
+  outputBadge.textContent = "converting…";
+
+  const inName = currentFile.name;
+  const ext = inName.split(".").pop().toLowerCase();
+  const inputFilename = "input." + (ext || "bin");
+  const data = await fetchFile(currentFile);
+  await ffmpeg.writeFile(inputFilename, data);
+
+  let outputFilename, args, outMime, outExt;
+
+  if (mode === "toMp4") {
+    outputFilename = "output.mp4";
+    outExt = "mp4";
+    outMime = "video/mp4";
+
+    // raw .vp8 files are headerless VP8 bitstreams: tell ffmpeg the codec/format explicitly
+    if (ext === "vp8") {
+      const fps = fpsSelect.value === "auto" ? "30" : fpsSelect.value;
+      args = ["-f", "rawvideo"]; // placeholder, replaced below
+      args = [
+        "-vcodec", "vp8",
+        "-f", "ivf",
+        "-i", inputFilename,
+        "-c:v", "libx264",
+        "-pix_fmt", "yuv420p",
+        "-r", fps,
+        outputFilename
+      ];
+      // If it's not actually a valid IVF wrapper, fall back to forcing vp8 demuxer
+    } else {
+      args = ["-i", inputFilename, "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", outputFilename];
+    }
+  } else {
+    outputFilename = "output.webm";
+    outExt = "webm";
+    outMime = "video/webm";
+    args = ["-i", inputFilename, "-c:v", "libvpx", "-b:v", "2M", "-c:a", "libvorbis", outputFilename];
+  }
+
+  try {
+    await ffmpeg.exec(args);
+  } catch (e) {
+    // fallback for .vp8 inputs that aren't IVF-wrapped: try raw VP8 stream demuxer
+    if (mode === "toMp4" && ext === "vp8") {
+      const fps = fpsSelect.value === "auto" ? "30" : fpsSelect.value;
+      await ffmpeg.exec([
+        "-r", fps,
+        "-f", "vp8",
+        "-i", inputFilename,
+        "-c:v", "libx264",
+        "-pix_fmt", "yuv420p",
+        outputFilename
+      ]);
+    } else {
+      throw e;
+    }
+  }
+
+  const outData = await ffmpeg.readFile(outputFilename);
+  const blob = new Blob([outData.buffer], { type: outMime });
+  const url = URL.createObjectURL(blob);
+
+  outputVideo.src = url;
+  outputBadge.textContent = "ready";
+  downloadLink.href = url;
+  downloadLink.download = inName.replace(/\.[^/.]+$/, "") + "_converted." + outExt;
+  downloadLink.style.display = "inline-block";
+  progressBar.style.width = "100%";
+  setStatus("Conversion complete.", "ok");
+}
+
+setMode("toMp4");
+</script>
 </body>
 </html>
