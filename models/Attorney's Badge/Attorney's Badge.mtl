@@ -1,0 +1,92 @@
+# Blender 4.4.3 MTL File: 'attorney's badge fixed.blend'
+# www.blender.org
+
+newmtl itm0000_00_material
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+map_Kd gs4_itm0000-00_iml4.png
+map_d gs4_itm0000-00_iml4.png
+
+newmtl itm0000_01_material_(english)
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+map_Kd gs4_itm0000-01_iml4.en.png
+map_d gs4_itm0000-01_iml4.en.png
+
+newmtl itm0000_01_material_(french)
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+map_Kd gs4_itm0000-01_iml4.fr.png
+map_d gs4_itm0000-01_iml4.fr.png
+
+newmtl itm0000_01_material_(german)
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+map_Kd gs4_itm0000-01_iml4.de.png
+map_d gs4_itm0000-01_iml4.de.png
+
+newmtl itm0000_01_material_(japanese)
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+map_Kd gs4_itm0000-01_iml4.ja.png
+map_d gs4_itm0000-01_iml4.ja.png
+
+newmtl itm0000_01_material_(korean)
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+map_Kd gs4_itm0000-01_iml4.ko.png
+map_d gs4_itm0000-01_iml4.ko.png
+
+newmtl itm0000_01_material_(simplified_chinese)
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+map_Kd gs4_itm0000-01_iml4.zhcn.png
+map_d gs4_itm0000-01_iml4.zhcn.png
+
+newmtl itm0000_01_material_(traditional_chinese)
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+map_Kd gs4_itm0000-01_iml4.zhtw.png
+map_d gs4_itm0000-01_iml4.zhtw.png
+
+newmtl itm0000_02_material
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+map_Kd gs4_itm0000-02_iml4.png
+map_d gs4_itm0000-02_iml4.png
