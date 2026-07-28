@@ -58,7 +58,7 @@
 
   <script type="module">
     import { FFmpeg } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/+esm';
-    import { fetchFile } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/+esm';
+    import { fetchFile, toBlobURL } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/+esm';
 
     let ffmpeg = null;
     let selectedFiles = [];
@@ -80,22 +80,27 @@
       logOutput.scrollTop = logOutput.scrollHeight;
     }
 
-    // Initialize FFmpeg
+    // Initialize FFmpeg with Blob URL CORS Workaround
     async function loadFFmpeg() {
       if (ffmpeg) return;
       ffmpeg = new FFmpeg();
       
       ffmpeg.on('log', ({ message }) => {
-        // Filter out overly noisy frame processing logs if desired, or show all
         log(message);
       });
 
-      log("Loading FFmpeg WebAssembly engine (this takes a few seconds on first run)...");
+      log("Loading FFmpeg WebAssembly engine (converting CDN scripts to Same-Origin Blobs)...");
       try {
+        const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+        const ffmpegURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm';
+        
+        // Using toBlobURL bypasses GitHub Pages / CDN cross-origin Worker blocks
         await ffmpeg.load({
-          coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.js',
-          wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.wasm',
+          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+          classWorkerURL: await toBlobURL(`${ffmpegURL}/worker.js`, 'text/javascript'),
         });
+        
         log("FFmpeg engine successfully loaded and ready.");
       } catch (err) {
         log(`Failed to load FFmpeg: ${err.message}`, true);
@@ -159,15 +164,12 @@
         setStatus(i, 'Converting...', 'processing');
         log(`Starting conversion for: ${file.name}`);
 
-        // Use safe internal names for virtual FS to avoid CLI symbol/space parsing errors
         const safeInput = `input_${i}.webp`;
         const safeOutput = `output_${i}.webp`;
 
         try {
-          // Write file to WebAssembly virtual file system
           await ffmpeg.writeFile(safeInput, await fetchFile(file));
 
-          // Run your exact FFmpeg command
           const exitCode = await ffmpeg.exec([
             '-i', safeInput,
             '-vf', 'scale=683:384,crop=640:384',
@@ -179,26 +181,22 @@
 
           if (exitCode !== 0) throw new Error(`FFmpeg exited with code ${exitCode}`);
 
-          // Read result and create Blob
           const data = await ffmpeg.readFile(safeOutput);
           const blob = new Blob([data.buffer], { type: 'image/webp' });
           
-          // Store with EXACT original filename
           convertedFiles.push({ name: file.name, blob: blob });
 
-          // Cleanup virtual FS memory
           await ffmpeg.deleteFile(safeInput);
           await ffmpeg.deleteFile(safeOutput);
 
           setStatus(i, 'Done', 'success');
           log(`Successfully converted: ${file.name}`);
 
-          // Add an individual download link next to the status badge
           const item = document.getElementById(`file-${i}`);
           const url = URL.createObjectURL(blob);
           const dlBtn = document.createElement('a');
           dlBtn.href = url;
-          dlBtn.download = file.name; // Preserves exact filename
+          dlBtn.download = file.name;
           dlBtn.textContent = "Download";
           dlBtn.className = "ml-3 text-xs text-indigo-400 hover:text-indigo-300 underline font-semibold";
           item.appendChild(dlBtn);
@@ -222,7 +220,6 @@
       const zip = new JSZip();
       
       convertedFiles.forEach(file => {
-        // Adding files to root of zip with their original filenames
         zip.file(file.name, file.blob);
       });
 
