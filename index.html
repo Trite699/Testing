@@ -3,236 +3,334 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Objection.lol Character Sprite Downloader</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<title>AJT FX Preview · aesr / aeeq on WAV</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0;}
+*{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg-primary:#fff;--bg-secondary:#f5f5f5;--bg-success:#e6f9ee;--bg-danger:#fdecea;--bg-warn:#fff8e1;
-  --text-primary:#111;--text-secondary:#666;--text-tertiary:#aaa;
-  --text-success:#1a7a3f;--text-danger:#b71c1c;--text-warn:#7a5800;
-  --border-t:rgba(0,0,0,0.12);--border-s:rgba(0,0,0,0.2);--border-p:rgba(0,0,0,0.35);
-  --r-md:8px;--r-lg:12px;--accent:#3a5bdc;
+  --bg1:#fff;--bg2:#f5f5f5;--txt1:#111;--txt2:#666;--txt3:#aaa;
+  --brd:rgba(0,0,0,0.12);--brd2:rgba(0,0,0,0.2);
+  --ok-bg:#e6f9ee;--ok-txt:#1a7a3f;--err-bg:#fdecea;--err-txt:#b71c1c;
+  --wa:#9a9a9a;--wb:#2f6fed;--r:8px;--rl:12px;
 }
 @media(prefers-color-scheme:dark){
   :root{
-    --bg-primary:#1e1e1e;--bg-secondary:#2a2a2a;--bg-success:#0d3320;--bg-danger:#3b1010;--bg-warn:#2a2000;
-    --text-primary:#f0f0f0;--text-secondary:#aaa;--text-tertiary:#666;
-    --text-success:#4caf82;--text-danger:#f08080;--text-warn:#e6c040;
-    --border-t:rgba(255,255,255,0.1);--border-s:rgba(255,255,255,0.2);--border-p:rgba(255,255,255,0.35);
-    --accent:#7d9bff;
+    --bg1:#1e1e1e;--bg2:#2a2a2a;--txt1:#f0f0f0;--txt2:#aaa;--txt3:#666;
+    --brd:rgba(255,255,255,0.1);--brd2:rgba(255,255,255,0.2);
+    --ok-bg:#0d3320;--ok-txt:#4caf82;--err-bg:#3b1010;--err-txt:#f08080;
+    --wa:#8a8a8a;--wb:#6aa2ff;
   }
 }
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--text-primary);background:var(--bg-secondary);min-height:100vh;}
-.wrap{max-width:960px;margin:0 auto;padding:2rem 1rem 4rem;}
-h1{font-size:22px;font-weight:500;margin-bottom:4px;}
-.sub{font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.5;}
-.sub code,.steps code{background:var(--bg-secondary);padding:1px 5px;border-radius:4px;font-family:monospace;}
-.card{background:var(--bg-primary);border:0.5px solid var(--border-t);border-radius:var(--r-lg);padding:1rem 1.25rem;margin-bottom:12px;}
-.card-title{font-size:11px;font-weight:500;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
-.card-title-right{font-size:11px;font-weight:400;color:var(--text-tertiary);text-transform:none;letter-spacing:0;}
-.steps{font-size:13px;line-height:1.7;color:var(--text-secondary);padding-left:20px;margin-bottom:12px;}
-textarea{width:100%;min-height:150px;resize:vertical;font-family:monospace;font-size:12px;padding:10px 12px;border-radius:var(--r-md);border:0.5px solid var(--border-s);background:var(--bg-secondary);color:var(--text-primary);outline:none;}
-textarea:focus{border-color:var(--border-p);}
-.btn-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;}
-.btn{font-family:inherit;font-size:13px;font-weight:500;padding:7px 16px;border-radius:var(--r-md);border:0.5px solid var(--border-s);background:transparent;color:var(--text-primary);cursor:pointer;transition:background .12s;white-space:nowrap;}
-.btn:hover:not(:disabled){background:var(--bg-secondary);}
-.btn:active:not(:disabled){transform:scale(0.98);}
-.btn:disabled{opacity:.35;cursor:default;}
-.btn-primary{background:var(--text-primary);color:var(--bg-primary);border-color:transparent;}
-.btn-primary:hover:not(:disabled){opacity:.88;background:var(--text-primary);}
-.status{font-size:13px;padding:7px 11px;border-radius:var(--r-md);margin-top:10px;background:var(--bg-secondary);color:var(--text-secondary);display:none;align-items:flex-start;gap:6px;line-height:1.5;}
-.status.show{display:flex;}
-.status.ok{background:var(--bg-success);color:var(--text-success);}
-.status.err{background:var(--bg-danger);color:var(--text-danger);}
-.status.warn{background:var(--bg-warn);color:var(--text-warn);}
-.status a{color:inherit;}
-.dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;margin-top:6px;}
-.img-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:10px;}
-.img-card{background:var(--bg-secondary);border-radius:var(--r-md);padding:10px;display:flex;flex-direction:column;gap:8px;}
-.thumb{background:
-  linear-gradient(45deg,rgba(128,128,128,.25) 25%,transparent 25%),
-  linear-gradient(-45deg,rgba(128,128,128,.25) 25%,transparent 25%),
-  linear-gradient(45deg,transparent 75%,rgba(128,128,128,.25) 75%),
-  linear-gradient(-45deg,transparent 75%,rgba(128,128,128,.25) 75%);
-  background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0;
-  border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center;height:110px;}
-.thumb img{max-width:100%;max-height:100%;object-fit:contain;}
-.thumb span{font-size:11px;color:var(--text-danger);padding:6px;text-align:center;}
-.img-card label{display:flex;align-items:flex-start;gap:6px;font-size:11.5px;font-weight:500;word-break:break-all;line-height:1.35;cursor:pointer;}
-.img-card input{margin-top:2px;accent-color:var(--accent);}
-.img-card .links{display:flex;gap:10px;font-size:11px;}
-.img-card .links a{color:var(--accent);text-decoration:none;cursor:pointer;}
-.img-card .links a:hover{text-decoration:underline;}
-.hint{font-size:11.5px;color:var(--text-tertiary);margin-top:12px;line-height:1.5;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg2);color:var(--txt1);padding:2rem 1rem}
+.wrap{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+h1{font-size:20px;font-weight:500}
+.sub{font-size:13px;color:var(--txt2);margin-top:3px;margin-bottom:4px}
+.card{background:var(--bg1);border:0.5px solid var(--brd);border-radius:var(--rl);padding:1rem 1.25rem}
+.card-label{font-size:11px;font-weight:500;color:var(--txt2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px}
+.drop-zone{border:1.5px dashed var(--brd2);border-radius:var(--r);padding:1.5rem 1rem;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;display:flex;flex-direction:column;align-items:center;gap:6px}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--txt2);background:var(--bg2)}
+.drop-main{font-size:13px;color:var(--txt2);font-weight:500}
+.drop-sub{font-size:11px;color:var(--txt3)}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}
+.metric{background:var(--bg2);border-radius:var(--r);padding:8px 10px}
+.metric-l{font-size:11px;color:var(--txt2);margin-bottom:2px}
+.metric-v{font-size:13px;font-weight:500;font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:12px;color:var(--txt2);font-weight:500}
+.field input,.field select{font-family:monospace;font-size:13px;padding:7px 10px;border-radius:var(--r);border:0.5px solid var(--brd2);background:var(--bg2);color:var(--txt1);width:100%}
+.field input:focus,.field select:focus{outline:none;border-color:var(--txt2)}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button{font-family:inherit;font-size:13px;font-weight:500;padding:7px 16px;border-radius:var(--r);border:0.5px solid var(--brd2);background:transparent;color:var(--txt1);cursor:pointer;transition:background .12s,opacity .12s;white-space:nowrap}
+button:hover:not(:disabled){background:var(--bg2)}
+button:active:not(:disabled){transform:scale(0.98)}
+button:disabled{opacity:.3;cursor:default}
+.btn-solid{background:var(--txt1);color:var(--bg1);border-color:transparent}
+.btn-solid:hover:not(:disabled){opacity:.85;background:var(--txt1)}
+.seg{display:inline-flex;border:0.5px solid var(--brd2);border-radius:var(--r);overflow:hidden}
+.seg button{border:none;border-radius:0}
+.seg button.on{background:var(--txt1);color:var(--bg1)}
+.status{font-size:13px;padding:8px 12px;border-radius:var(--r);margin-top:10px;display:flex;align-items:center;gap:7px;background:var(--bg2);color:var(--txt2)}
+.status.ok{background:var(--ok-bg);color:var(--ok-txt)}
+.status.err{background:var(--err-bg);color:var(--err-txt)}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+.chk{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--txt2);cursor:pointer;user-select:none}
+.wave-row{background:var(--bg2);border-radius:var(--r);padding:6px 8px 8px;border:1px solid transparent;margin-top:8px}
+.wave-row.on{border-color:var(--brd2)}
+.wave-head{display:flex;justify-content:space-between;font-size:11px;color:var(--txt2);margin-bottom:4px}
+.wave-box{position:relative;height:64px;cursor:pointer}
+canvas{width:100%;height:100%;display:block}
+.ph{position:absolute;top:0;bottom:0;left:0;width:1px;background:var(--txt1);pointer-events:none}
+details{margin-top:10px}
+summary{font-size:12px;color:var(--txt2);cursor:pointer}
+.hint{font-size:12px;color:var(--txt3);margin-top:8px}
+.mt10{margin-top:10px}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>objection.lol Character Sprite Downloader</h1>
-  <p class="sub">Save the sprites from an objection.lol character as a ZIP. Runs entirely in your browser; nothing is uploaded.</p>
-
-  <div class="card">
-    <div class="card-title">Paste character data</div>
-    <ol class="steps">
-      <li>On objection.lol, load the character (My Assets → Characters, or open a case that uses it).</li>
-      <li>Open DevTools (<code>F12</code> or <code>Ctrl/Cmd+Shift+I</code>) → <b>Network</b> → filter <b>Fetch/XHR</b>.</li>
-      <li>Reload, click the request that returns the character's JSON, open <b>Response</b>, and copy it all.</li>
-      <li>Paste it below.</li>
-    </ol>
-    <textarea id="pasteArea" placeholder="Paste the character JSON response here…" spellcheck="false"></textarea>
-    <div class="btn-row">
-      <button class="btn btn-primary" id="parseBtn">Fetch sprites</button>
-      <button class="btn" id="clearBtn">Clear</button>
-    </div>
-    <div id="pasteStatus" class="status"></div>
+  <div>
+    <h1>Apollo FX Preview</h1>
+    <p class="sub">Apply .aesr.2 reverb and .aeeq.2 EQ settings to any WAV and compare before / after</p>
   </div>
 
-  <div class="card" id="resultsCard" style="display:none">
-    <div class="card-title">Sprites <span class="card-title-right" id="resultCount"></span></div>
-    <div class="btn-row" style="margin-top:0">
-      <button class="btn btn-primary" id="downloadZipBtn">Download selected as .zip</button>
-      <button class="btn" id="selectAllBtn">Select all</button>
-      <button class="btn" id="selectNoneBtn">Select none</button>
+  <div class="card">
+    <div class="card-label">Input WAV</div>
+    <label class="drop-zone" id="dropZone">
+      <span class="drop-main" id="dropMain">Choose a .wav file</span>
+      <span class="drop-sub">.wav — drag &amp; drop supported</span>
+      <input type="file" accept=".wav,audio/wav" id="fileIn" style="display:none">
+    </label>
+    <div class="metrics" id="metrics" style="display:none"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Effect</div>
+    <div class="field-row">
+      <div class="field"><label for="selRev">Reverb (aesr)</label><select id="selRev"></select></div>
+      <div class="field"><label for="selEq">EQ (aeeq)</label><select id="selEq"></select></div>
     </div>
-    <div id="zipStatus" class="status"></div>
-    <div class="img-grid" id="grid"></div>
-    <p class="hint">Not affiliated with objection.lol.</p>
+    <div class="field mt10">
+      <label for="selRoute">Routing (reverb + EQ)</label>
+      <select id="selRoute">
+        <option value="ins">Insert: dry + wet per reverb file → EQ</option>
+        <option value="wet">Send: original untouched + EQ(reverb only)</option>
+        <option value="all">Send: EQ(original + reverb)</option>
+      </select>
+    </div>
+    <details id="revPanel" style="display:none">
+      <summary>Reverb parameters (names inferred from the file values — edit freely)</summary>
+      <div class="field-row mt10" id="revFields"></div>
+    </details>
+    <div class="btn-row mt10">
+      <button id="btnFx">Load effect files (.2)…</button>
+      <input type="file" id="fxIn" accept=".2" multiple style="display:none">
+    </div>
+    <div class="status" id="status" style="display:none"><span class="dot"></span><span id="statusTxt"></span></div>
+  </div>
+
+  <div class="card" id="cmpCard" style="display:none">
+    <div class="card-label">Before / After</div>
+    <div class="btn-row">
+      <div class="seg"><button id="bB">Before</button><button id="bA" class="on">After</button></div>
+      <button id="bPlay">▶ Play</button>
+      <label class="chk"><input type="checkbox" id="loopCb" checked> Loop</label>
+      <span class="hint" id="tLbl" style="margin:0 0 0 auto;font-family:monospace"></span>
+    </div>
+    <div class="wave-row" id="rowB"><div class="wave-head"><span>Before</span><span id="mB"></span></div><div class="wave-box" id="boxB"><canvas id="cvB"></canvas><div class="ph"></div></div></div>
+    <div class="wave-row on" id="rowA"><div class="wave-head"><span>After</span><span id="mA"></span></div><div class="wave-box" id="boxA"><canvas id="cvA"></canvas><div class="ph"></div></div></div>
+    <div class="metrics" id="cmpMetrics" style="grid-template-columns:repeat(3,minmax(0,1fr))"></div>
+    <div class="hint">Click a waveform to audition that version from that point. Both versions stay in sync, so A/B switching is instant. Peak / RMS are measured over the original length.</div>
+  </div>
+
+  <div class="card" id="dlCard" style="display:none">
+    <div class="card-label">Output</div>
+    <div class="btn-row"><button class="btn-solid" id="btnDl">⬇ <span id="dlLbl">Download</span></button></div>
+    <div class="hint" id="dlHint"></div>
   </div>
 </div>
 
 <script>
-const $ = id => document.getElementById(id);
-const pasteArea=$('pasteArea'), pasteStatus=$('pasteStatus'), zipStatus=$('zipStatus');
-const resultsCard=$('resultsCard'), grid=$('grid'), downloadZipBtn=$('downloadZipBtn');
-let foundItems = [];
+const FX=[{"label": "GS4 BGM reverb", "b64": "UlNaABAAAAABAAAAAgAAAAAAAAAAAAAANAAAAAAAAABQAAAAAAAAAFAAAAAAAAAAAQAAAAAAAAAAAAAAmycGllXW3VkAAAAAAAAAAAAAAAAAAAAAAADAwgAAAAAAAAAAzcyMPwAAIEEAAMhCshK4dQ=="}, {"label": "GS5 ERU reverb", "b64": "UlNaABAAAAABAAAAAgAAAAAAAAAAAAAANAAAAAAAAABQAAAAAAAAAFAAAAAAAAAAAQAAAAAAAAAAAAAAmycGllXW3VkAAAAAAAAAAAAAAAAAAAAAAAAAAOxR7sEAAIA/H4UrQAAAAEAAAMhCajYGGA=="}, {"label": "EQ for GS4 BGM reverb", "b64": "UlNaABAAAAABAAAABwAAAAAAAAAAAAAANAAAAAAAAABwAAAAAAAAAHAAAAAAAAAABgAAAAAAAAAAAAAAtJ/X1PKG7sy0n9fU8obuzLSf19Tyhu7MtJ/X1PKG7sy0n9fU8obuzD8p5gcmSu2+AAAAAAEAAAABAAAA12uFRDMzMz8AAMDCAQAAAAUAAAAAAMhDMzMzPwAAAAABAAAABQAAAAAAekQzMzM/AAAAAAEAAAAFAAAAAAB6RTMzMz8AAAAAAQAAAAcAAAAAQBxGMzMzPwAAAAAAAAAABQAAAAEAAAACAAAAAwAAAAQAAAAFAAAAlEq5vQ=="}, {"label": "Master EQ (Apollo)", "b64": "UlNaABAAAAABAAAAAwAAAAAAAAAAAAAANAAAAAAAAABQAAAAAAAAAFAAAAAAAAAAAgAAAAAAAAAAAAAAtJ/X1PKG7sw/KeYHJkrtvgAAAAABAAAAAQAAAAAAyEIzMzM/AAAAAAAAAAABAAAAAQAAAEwSEqg="}];
+const $=id=>document.getElementById(id),db=x=>x<=-90?0:Math.pow(10,x/20),css=v=>getComputedStyle(document.documentElement).getPropertyValue(v);
+const BQ=["lowpass","highpass","bandpass","notch","allpass","peaking","lowshelf","highshelf"];
+const S={wav:null,lib:[],rev:null,eq:null,route:"ins",out:null,tok:0};
+let pctx=null,nodes=null,playing=false,t0=0,off0=0,gen=0,mode="after",timer=null;
 
-function setStatus(el, type, msg){
-  el.className = 'status show ' + type;
-  el.innerHTML = '<span class="dot"></span><span>' + msg + '</span>';
-}
-function hideStatus(el){ el.className = 'status'; el.innerHTML = ''; }
-function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function setSt(m,c){const e=$("status");e.className="status "+(c||"");e.style.display="flex";$("statusTxt").textContent=m}
+function stripExt(n){return n.replace(/\.wav$/i,"")}
+function fmtDb(v){return v>0?(20*Math.log10(v)).toFixed(1):"−∞"}
+function metrics(el,pairs){el.innerHTML=pairs.map(([l,v])=>`<div class="metric"><div class="metric-l">${l}</div><div class="metric-v">${v}</div></div>`).join("");el.style.display="grid"}
 
-$('parseBtn').addEventListener('click', () => {
-  const raw = pasteArea.value.trim();
-  if (!raw){ setStatus(pasteStatus,'err','Paste the JSON response first.'); return; }
-  let data;
-  try{ data = JSON.parse(raw); }
-  catch(e){ setStatus(pasteStatus,'err',`Couldn't read that as JSON (${esc(e.message)}). Make sure you copied the full response body.`); return; }
-  foundItems = extractImageUrls(data).map((it,i) => ({...it, filename: suggestFilename(it,i)}));
-  if (!foundItems.length){
-    resultsCard.style.display = 'none';
-    setStatus(pasteStatus,'warn','No image URLs were found in that data.');
-    return;
+// ── RSZ effect parser (aesr = reverb, aeeq = EQ) ─────────────────────────────
+function parseRSZ(u8){
+  const dv=new DataView(u8.buffer,u8.byteOffset,u8.byteLength),u=o=>dv.getUint32(o,true),f=o=>dv.getFloat32(o,true),i=o=>dv.getInt32(o,true);
+  if(u8.length<0x34||u(0)!==0x005a5352)throw Error("not an RSZ effect file");
+  const nInst=u(12),iOff=Number(dv.getBigUint64(0x18,true)),root=u(0x30),types=[];
+  for(let k=0;k<nInst;k++)types.push(u(iOff+8*k));
+  let p=Number(dv.getBigUint64(0x20,true));const inst={},need=n=>{if(p+n>u8.length)throw Error("effect data truncated")};
+  for(let k=1;k<nInst;k++){
+    const t=types[k];
+    if(t===0x9606279b){need(32);inst[k]={k:"rev",v:[i(p),f(p+4),f(p+8),f(p+12),f(p+16),f(p+20),f(p+24)]};p+=32}
+    else if(t===0xd4d79fb4){need(20);inst[k]={on:i(p),type:i(p+4),freq:f(p+8),q:f(p+12),gain:f(p+16)};p+=20}
+    else if(t===0x07e6293f){need(12);const n=u(p+4);need(12+4*n);inst[k]={k:"eq",ids:Array.from({length:n},(_,j)=>u(p+8+4*j))};p+=12+4*n}
+    else throw Error("unknown effect type 0x"+t.toString(16));
   }
-  setStatus(pasteStatus,'ok',`Found ${foundItems.length} sprite${foundItems.length===1?'':'s'}.`);
-  renderGrid();
+  const r=inst[root];if(!r)throw Error("no root object");
+  if(r.k==="rev"){const v=r.v;return{kind:"rev",p:{dry:v[1],wet:v[2],pre:v[3],decay:v[4],damp:v[5]}}}
+  if(r.k==="eq")return{kind:"eq",bands:r.ids.map(j=>({...inst[j]}))};
+  throw Error("unsupported root object");
+}
+
+// ── Effect library / selects ─────────────────────────────────────────────────
+function addFx(label,u8){const fx=parseRSZ(u8);fx.label=label;S.lib=S.lib.filter(x=>x.label!==label);S.lib.push(fx);fillSelects();return fx}
+function fillSelects(){
+  for(const[k,id]of[["rev","selRev"],["eq","selEq"]]){
+    const sel=$(id),cur=sel.value;
+    sel.innerHTML='<option value="">None</option>'+S.lib.filter(x=>x.kind===k).map(x=>`<option>${x.label}</option>`).join("");
+    sel.value=cur;
+  }
+}
+const REVF=[["dry","Dry level (dB)"],["wet","Wet level (dB)"],["pre","Pre-delay (ms)"],["decay","Decay time (s)"],["damp","HF damping"]];
+function pick(kind,label){
+  const fx=S.lib.find(x=>x.kind===kind&&x.label===label),c=o=>JSON.parse(JSON.stringify(o));
+  if(kind==="eq"){S.eq=fx?c(fx.bands):null;return}
+  S.rev=fx?c(fx.p):null;$("revPanel").style.display=fx?"":"none";
+  if(fx){REVF.forEach(([k],n)=>$("rf"+n).value=+S.rev[k].toFixed(3));S.route=S.rev.dry<=-90?"wet":"ins";$("selRoute").value=S.route}
+}
+$("revFields").innerHTML=REVF.map(([k,l],n)=>`<div class="field"><label>${l}</label><input type="number" step="any" id="rf${n}"></div>`).join("");
+REVF.forEach(([k],n)=>$("rf"+n).addEventListener("input",e=>{if(S.rev&&e.target.value!==""){S.rev[k]=parseFloat(e.target.value);schedule()}}));
+$("selRev").addEventListener("change",e=>{pick("rev",e.target.value);schedule()});
+$("selEq").addEventListener("change",e=>{pick("eq",e.target.value);schedule()});
+$("selRoute").addEventListener("change",e=>{S.route=e.target.value;schedule()});
+$("btnFx").addEventListener("click",()=>$("fxIn").click());
+$("fxIn").addEventListener("change",async e=>{
+  for(const f of e.target.files){
+    try{const fx=addFx(f.name,new Uint8Array(await f.arrayBuffer()));const sel=$(fx.kind==="rev"?"selRev":"selEq");sel.value=f.name;pick(fx.kind,f.name)}
+    catch(err){setSt(f.name+": "+err.message,"err");return}
+  }
+  e.target.value="";schedule();
 });
 
-$('clearBtn').addEventListener('click', () => {
-  pasteArea.value = ''; foundItems = []; grid.innerHTML = '';
-  resultsCard.style.display = 'none'; hideStatus(pasteStatus); hideStatus(zipStatus);
-});
+// ── WAV load ─────────────────────────────────────────────────────────────────
+function parseWavBasic(buf){
+  const dv=new DataView(buf.buffer,buf.byteOffset,buf.byteLength),s=o=>String.fromCharCode(buf[o],buf[o+1],buf[o+2],buf[o+3]);
+  if(buf.length<12||s(0)!=="RIFF"||s(8)!=="WAVE")throw Error("not a RIFF/WAVE file");
+  let off=12,r={};
+  while(off+8<=buf.length){const id=s(off),sz=dv.getUint32(off+4,true);
+    if(id==="fmt "){r.rate=dv.getUint32(off+12,true);r.bits=dv.getUint16(off+22,true)}
+    off+=8+sz+(sz&1)}
+  if(!r.rate)throw Error("no fmt chunk found");
+  return r;
+}
+const dz=$("dropZone");
+$("fileIn").addEventListener("change",e=>{if(e.target.files[0])loadWav(e.target.files[0])});
+dz.addEventListener("dragover",e=>{e.preventDefault();dz.classList.add("drag")});
+dz.addEventListener("dragleave",()=>dz.classList.remove("drag"));
+dz.addEventListener("drop",e=>{e.preventDefault();dz.classList.remove("drag");if(e.dataTransfer.files[0])loadWav(e.dataTransfer.files[0])});
+async function loadWav(f){
+  try{
+    const bytes=new Uint8Array(await f.arrayBuffer()),info=parseWavBasic(bytes);
+    const dec=new OfflineAudioContext(2,1,Math.min(Math.max(info.rate,8000),96000));
+    const buf=await dec.decodeAudioData(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength));
+    S.wav={name:f.name,buf};$("dropMain").textContent=f.name;
+    metrics($("metrics"),[["Channels",buf.numberOfChannels],["Rate",buf.sampleRate+" Hz"],["Depth",info.bits+"b"],["Length",buf.duration.toFixed(2)+" s"]]);
+    setSt(buf.numberOfChannels>2?"Loaded — using the first 2 of "+buf.numberOfChannels+" channels":"WAV loaded","ok");
+    render();
+  }catch(e){setSt("Could not read WAV: "+e.message,"err")}
+}
 
-function extractImageUrls(data){
-  const found = [], seen = new Set();
-  const IMG_RE = /\.(png|jpe?g|gif|webp|apng|bmp)(\?[^"'\s]*)?$/i;
-  const CDN = ['filegarden','discordapp','discord.com','imgur','googleusercontent','cloudinary','ibb.co','postimg','amazonaws','fbcdn'];
-  (function walk(node, path){
-    if (node == null) return;
-    if (typeof node === 'string'){
-      if (/^https?:\/\//i.test(node) && !seen.has(node) &&
-          (IMG_RE.test(node) || CDN.some(h => node.toLowerCase().includes(h)))){
-        seen.add(node);
-        found.push({ url: node, path: path.join('/') || 'asset' });
-      }
-      return;
+// ── Render (OfflineAudioContext) ─────────────────────────────────────────────
+function schedule(){if(!S.wav)return;clearTimeout(timer);timer=setTimeout(render,250)}
+function rng(a){return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function makeIR(ctx,p,rate){
+  const dec=Math.max(p.decay,.05),pre=Math.round(Math.max(p.pre,0)/1000*rate),len=pre+Math.ceil(dec*rate)+1,ir=ctx.createBuffer(2,len,rate);
+  const a=Math.exp(-2*Math.PI*Math.min(20000,Math.max(1500,20000/(1+.5*Math.max(p.damp,0))))/rate);
+  for(let c=0;c<2;c++){
+    const d=ir.getChannelData(c),R=rng(1234+c*77);let y=0,e=0;
+    for(let n=pre;n<len;n++){const t=(n-pre)/rate;y=(1-a)*(R()*2-1)*Math.exp(-6.9078*t/dec)*Math.min(1,t/.004)+a*y;d[n]=y;e+=y*y}
+    const g=1/Math.sqrt(e||1);for(let n=pre;n<len;n++)d[n]*=g; // unit energy: 0 dB wet ≈ input loudness
+  }
+  return ir;
+}
+function stat(b,n){let pk=0,ss=0;for(let c=0;c<b.numberOfChannels;c++){const d=b.getChannelData(c);for(let i=0;i<d.length;i++){const a=Math.abs(d[i]);if(a>pk)pk=a;if(i<n)ss+=d[i]*d[i]}}return{pk,rms:Math.sqrt(ss/(n*b.numberOfChannels))}}
+async function render(){
+  const w=S.wav;if(!w)return;const tok=++S.tok,src=w.buf,rate=src.sampleRate,rv=S.rev,eq=S.eq,ch=rv?2:Math.min(src.numberOfChannels,2);
+  setSt("Rendering…");
+  try{
+    const N=src.length+(rv?Math.ceil((Math.max(rv.pre,0)/1000+Math.max(rv.decay,.05))*rate)+1:0);
+    const inp=new AudioBuffer({length:N,numberOfChannels:ch,sampleRate:rate});
+    for(let c=0;c<ch;c++)inp.copyToChannel(src.getChannelData(Math.min(c,src.numberOfChannels-1)),c);
+    const off=new OfflineAudioContext(ch,N,rate),s=off.createBufferSource();s.buffer=inp;
+    const chain=n=>{if(eq)for(const b of eq){if(!b.on)continue;const f=off.createBiquadFilter(),t=BQ[b.type]||"peaking";
+      f.type=t;f.frequency.value=Math.min(Math.max(b.freq,10),rate*.49);
+      f.Q.value=(t==="lowpass"||t==="highpass")?20*Math.log10(Math.max(b.q,.01)):Math.max(b.q,.01); // Web Audio LP/HP Q is in dB
+      f.gain.value=Math.min(Math.max(b.gain,-120),60);n.connect(f);n=f}return n};
+    if(!rv)chain(s).connect(off.destination);
+    else{
+      const cv=off.createConvolver(),wet=off.createGain();cv.normalize=false;cv.buffer=makeIR(off,rv,rate);wet.gain.value=db(rv.wet);s.connect(cv);cv.connect(wet);
+      if(S.route==="wet"){chain(wet).connect(off.destination);s.connect(off.destination)}
+      else{const mix=off.createGain();wet.connect(mix);
+        if(S.route==="all")s.connect(mix);else{const d=off.createGain();d.gain.value=db(rv.dry);s.connect(d);d.connect(mix)}
+        chain(mix).connect(off.destination)}
     }
-    if (Array.isArray(node)){ node.forEach((v,i) => walk(v,[...path,i])); return; }
-    if (typeof node === 'object'){ for (const [k,v] of Object.entries(node)) walk(v,[...path,k]); }
-  })(data, []);
-  return found;
+    s.start();const after=await off.startRendering();if(tok!==S.tok)return;
+    let a=stat(after,src.length),fix=1;
+    if(a.pk>1){fix=.891/a.pk;for(let c=0;c<ch;c++){const d=after.getChannelData(c);for(let i=0;i<d.length;i++)d[i]*=fix}a={pk:a.pk*fix,rms:a.rms*fix}}
+    const b=stat(inp,src.length),wasPlaying=playing,pos=position();
+    S.out={before:inp,after,sc:.95/Math.max(b.pk,a.pk,.01)};
+    $("cmpCard").style.display="";$("dlCard").style.display="";
+    metrics($("cmpMetrics"),[["Peak (dBFS)",fmtDb(b.pk)+" → "+fmtDb(a.pk)],["RMS (dBFS)",fmtDb(b.rms)+" → "+fmtDb(a.rms)],["Length",src.duration.toFixed(2)+" → "+after.duration.toFixed(2)+" s"]]);
+    $("mB").textContent=fmtDb(b.pk)+" dBFS peak";$("mA").textContent=fmtDb(a.pk)+" dBFS peak"+(fix<1?" · auto −"+(-20*Math.log10(fix)).toFixed(1)+" dB to avoid clipping":"");
+    const nm=stripExt(w.name)+(rv?"_"+$("selRev").value.replace(/\W+/g,""):"")+(eq?"_"+$("selEq").value.replace(/\W+/g,""):"");
+    S.dlName=nm+".wav";$("dlLbl").textContent="Download "+S.dlName;$("dlHint").textContent="16-bit PCM · "+rate+" Hz · "+ch+"ch";
+    drawAll();
+    if(wasPlaying){startPlay(pos)}else off0=Math.min(off0,after.duration);
+    setSt(rv||eq?"Rendered · "+[rv&&$("selRev").value,eq&&$("selEq").value].filter(Boolean).join(" + "):"No effect selected — after is identical to before","ok");
+  }catch(e){setSt("Render error: "+e.message,"err")}
 }
 
-function suggestFilename(item, index){
-  const m = item.url.split('?')[0].match(/\.([a-zA-Z0-9]+)$/);
-  const ext = m ? m[1] : 'png';
-  const base = item.path.replace(/[^a-zA-Z0-9]+/g,'_').replace(/^_+|_+$/g,'') || 'sprite';
-  return String(index+1).padStart(2,'0') + '_' + base.slice(0,70) + '.' + ext;
+// ── Waveforms ────────────────────────────────────────────────────────────────
+function wave(cv,buf,sc,col){
+  const dpr=devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;cv.width=w*dpr;cv.height=h*dpr;
+  const g=cv.getContext("2d");g.scale(dpr,dpr);g.fillStyle=col;
+  const n=buf.length,spp=n/w,mid=h/2,ds=Array.from({length:buf.numberOfChannels},(_,c)=>buf.getChannelData(c));
+  for(let x=0;x<w;x++){
+    const a=Math.floor(x*spp),b=Math.max(a+1,Math.floor((x+1)*spp)),st=Math.max(1,(b-a)>>6);let lo=0,hi=0;
+    for(const d of ds)for(let i=a;i<b&&i<n;i+=st){const v=d[i];if(v<lo)lo=v;if(v>hi)hi=v}
+    const y1=mid-hi*sc*mid,y2=mid-lo*sc*mid;g.fillRect(x,y1,1,Math.max(1,y2-y1));
+  }
 }
+function drawAll(){if(!S.out)return;wave($("cvB"),S.out.before,S.out.sc,css("--wa"));wave($("cvA"),S.out.after,S.out.sc,css("--wb"));updateUI()}
+addEventListener("resize",()=>{clearTimeout(S.rz);S.rz=setTimeout(drawAll,150)});
+matchMedia("(prefers-color-scheme:dark)").addEventListener("change",drawAll);
 
-function renderGrid(){
-  grid.innerHTML = '';
-  hideStatus(zipStatus);
-  resultsCard.style.display = 'block';
-  $('resultCount').textContent = `${foundItems.length} found`;
-  foundItems.forEach((item,i) => {
-    const el = document.createElement('div');
-    el.className = 'img-card';
-    el.innerHTML = `
-      <div class="thumb"><img src="${esc(item.url)}" loading="lazy" alt=""></div>
-      <label><input type="checkbox" checked data-idx="${i}"><span>${esc(item.filename)}</span></label>
-      <div class="links">
-        <a href="${esc(item.url)}" target="_blank" rel="noopener">Open</a>
-        <a class="copyLink" data-url="${esc(item.url)}">Copy link</a>
-      </div>`;
-    el.querySelector('img').addEventListener('error', e => {
-      e.target.parentElement.innerHTML = '<span>Preview unavailable</span>';
-    });
-    el.querySelector('.copyLink').addEventListener('click', e => {
-      const a = e.currentTarget;
-      navigator.clipboard.writeText(a.dataset.url);
-      a.textContent = 'Copied';
-      setTimeout(() => a.textContent = 'Copy link', 1200);
-    });
-    grid.appendChild(el);
-  });
+// ── A/B playback (both versions run in sync; switching just swaps gains) ────
+const dur=()=>S.out?S.out.after.duration:0,loopOn=()=>$("loopCb").checked;
+function position(){if(!playing)return off0;let p=off0+(pctx.currentTime-t0);const d=dur();if(loopOn()&&d>0)p%=d;return Math.min(p,d)}
+function stopNodes(){gen++;if(nodes){for(const k of["a","b"]){try{nodes[k].s.onended=null;nodes[k].s.stop()}catch(e){}try{nodes[k].s.disconnect();nodes[k].g.disconnect()}catch(e){}}nodes=null}}
+async function startPlay(at){
+  if(!S.out)return;pctx=pctx||new(window.AudioContext||window.webkitAudioContext)();if(pctx.state==="suspended")await pctx.resume();
+  stopNodes();const my=gen,mk=(buf,on)=>{const s=pctx.createBufferSource(),g=pctx.createGain();s.buffer=buf;s.loop=loopOn();g.gain.value=on?1:0;s.connect(g);g.connect(pctx.destination);return{s,g}};
+  if(at>=dur())at=0;nodes={a:mk(S.out.before,mode==="before"),b:mk(S.out.after,mode==="after")};
+  off0=at;t0=pctx.currentTime;nodes.a.s.start(0,at);nodes.b.s.start(0,at);playing=true;
+  nodes.b.s.onended=()=>{if(my===gen&&!loopOn()){playing=false;off0=0;updateUI()}};
+  requestAnimationFrame(tick);updateUI();
 }
+function pause(){off0=position();stopNodes();playing=false;updateUI()}
+function seek(t){if(playing)startPlay(t);else{off0=t;updateUI()}}
+function setMode(m){mode=m;if(nodes){nodes.a.g.gain.setTargetAtTime(m==="before"?1:0,pctx.currentTime,.008);nodes.b.g.gain.setTargetAtTime(m==="after"?1:0,pctx.currentTime,.008)}updateUI()}
+function tick(){if(!playing)return;updateUI();requestAnimationFrame(tick)}
+function updateUI(){
+  const d=dur(),p=position(),pct=d?p/d*100+"%":"0%";
+  document.querySelectorAll(".ph").forEach(e=>e.style.left=pct);
+  $("tLbl").textContent=p.toFixed(1)+" / "+d.toFixed(1)+" s";
+  $("bPlay").textContent=playing?"⏸ Pause":"▶ Play";
+  $("bB").className=mode==="before"?"on":"";$("bA").className=mode==="after"?"on":"";
+  $("rowB").className="wave-row"+(mode==="before"?" on":"");$("rowA").className="wave-row"+(mode==="after"?" on":"");
+}
+$("bPlay").addEventListener("click",()=>playing?pause():startPlay(off0));
+$("bB").addEventListener("click",()=>setMode("before"));
+$("bA").addEventListener("click",()=>setMode("after"));
+$("loopCb").addEventListener("change",()=>{if(playing)startPlay(position())});
+for(const[id,m]of[["boxB","before"],["boxA","after"]])$(id).addEventListener("click",e=>{const r=e.currentTarget.getBoundingClientRect();setMode(m);seek((e.clientX-r.left)/r.width*dur())});
+addEventListener("keydown",e=>{if(e.code==="Space"&&S.out&&!/INPUT|SELECT|BUTTON/.test(e.target.tagName)){e.preventDefault();playing?pause():startPlay(off0)}});
 
-const setAll = v => grid.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = v);
-$('selectAllBtn').addEventListener('click', () => setAll(true));
-$('selectNoneBtn').addEventListener('click', () => setAll(false));
+// ── Download (16-bit PCM) ────────────────────────────────────────────────────
+function encodeWav16(b){
+  const ch=b.numberOfChannels,n=b.length,out=new DataView(new ArrayBuffer(44+n*ch*2)),w=(o,s)=>{for(let i=0;i<s.length;i++)out.setUint8(o+i,s.charCodeAt(i))};
+  w(0,"RIFF");out.setUint32(4,36+n*ch*2,true);w(8,"WAVEfmt ");out.setUint32(16,16,true);out.setUint16(20,1,true);out.setUint16(22,ch,true);
+  out.setUint32(24,b.sampleRate,true);out.setUint32(28,b.sampleRate*ch*2,true);out.setUint16(32,ch*2,true);out.setUint16(34,16,true);w(36,"data");out.setUint32(40,n*ch*2,true);
+  const ds=Array.from({length:ch},(_,c)=>b.getChannelData(c));let o=44;
+  for(let i=0;i<n;i++)for(let c=0;c<ch;c++){const v=Math.max(-1,Math.min(1,ds[c][i]));out.setInt16(o,v<0?v*32768:v*32767,true);o+=2}
+  return new Blob([out.buffer],{type:"audio/wav"});
+}
+$("btnDl").addEventListener("click",()=>{if(!S.out)return;const a=document.createElement("a");a.href=URL.createObjectURL(encodeWav16(S.out.after));a.download=S.dlName;a.click()});
 
-downloadZipBtn.addEventListener('click', async () => {
-  const picked = [...grid.querySelectorAll('input:checked')].map(cb => foundItems[+cb.dataset.idx]);
-  if (!picked.length){ setStatus(zipStatus,'err','Select at least one sprite first.'); return; }
-  downloadZipBtn.disabled = true;
-  const zip = new JSZip();
-  let ok = 0; const failed = [];
-
-  for (let i=0; i<picked.length; i++){
-    setStatus(zipStatus,'', `Fetching ${i+1} of ${picked.length}…`);
-    try{
-      const res = await fetch(picked[i].url, { mode:'cors' });
-      if (!res.ok) throw new Error(res.status);
-      zip.file(picked[i].filename, await res.blob());
-      ok++;
-    }catch(e){ failed.push(picked[i]); }
-  }
-
-  if (!ok){
-    setStatus(zipStatus,'err',`Couldn't fetch any images (the host may block cross-origin downloads). Use each sprite's "Open" link and save it manually.`);
-    downloadZipBtn.disabled = false;
-    return;
-  }
-
-  setStatus(zipStatus,'', 'Zipping…');
-  const blob = await zip.generateAsync({ type:'blob' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'objection-lol-sprites.zip';
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-
-  let msg = `Downloaded ${ok} sprite${ok===1?'':'s'}.`;
-  if (failed.length){
-    msg += ` ${failed.length} couldn't be fetched, so save these manually: ` +
-      failed.map(f => `<a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.filename)}</a>`).join(', ');
-  }
-  setStatus(zipStatus, failed.length ? 'warn' : 'ok', msg);
-  downloadZipBtn.disabled = false;
-});
+// ── Init: load the built-in presets, default to the GS4 BGM reverb + its EQ ──
+for(const x of FX){try{addFx(x.label,Uint8Array.from(atob(x.b64),c=>c.charCodeAt(0)))}catch(e){console.warn(x.label,e)}}
+$("selRev").value="GS4 BGM reverb";pick("rev","GS4 BGM reverb");
+$("selEq").value="EQ for GS4 BGM reverb";pick("eq","EQ for GS4 BGM reverb");
+setSt("Choose a WAV, then pick a reverb and/or EQ","");
 </script>
 </body>
 </html>
