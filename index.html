@@ -108,8 +108,8 @@ input[type=range]{width:100%;accent-color:var(--accent);}
   <input type="range" id="scrub" min="0" max="0" value="0">
   <div class="meta" id="meta" style="margin-top:10px"></div>
   <div class="row"><button class="btn btn-sm" id="dlf">Download frame PNG</button><button class="btn btn-sm" id="dls">Download strip PNG</button><button class="btn btn-sm" id="dlt">Download tile sheet PNG</button>
-  <label style="font-size:11.5px;color:var(--text-secondary);display:flex;gap:6px;align-items:center">GIF bg <select class="sel" id="xbg"><option value="">Transparent</option><option value="#000000">Black</option><option value="#ffffff">White</option><option value="#00b140">Green</option></select></label>
-  <button class="btn btn-primary btn-sm" id="dlg">Export animation (GIF)</button></div>
+  <label style="font-size:11.5px;color:var(--text-secondary);display:flex;gap:6px;align-items:center">Format <select class="sel" id="xfmt"><option value="gif">GIF</option><option value="apng">APNG</option><option value="webp">WebP</option></select> Background <select class="sel" id="xbg"><option value="">Transparent</option><option value="#000000">Black</option><option value="#ffffff">White</option><option value="#00b140">Green</option></select></label>
+  <button class="btn btn-primary btn-sm" id="dlg">Export animation (256×192)</button></div>
   <div id="xmsg"></div>
   <p class="foot" style="margin-top:8px">Durations are in 1/60 s ticks. Pixel shifts come from the animation's per-frame translate data (plus rotation/scale when present); untick “Apply pixel shifts” to compare. Per-OAM rotation/scale is not applied. If sprites look wrong, try another palette bank or graphics file from the same archive.</p>
 </div></div>
@@ -587,7 +587,67 @@ function makeGif(frames,w,h){
   });
   b.push(0x3b);return new Uint8Array(b);
 }
-function exportGif(){
+// ---------- APNG / WebP encoders (no libraries; 256x192 output) ----------
+const crcT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xedb88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(u,s,e){let c=~0;for(let i=s;i<e;i++)c=crcT[(c^u[i])&255]^(c>>>8);return ~c>>>0;}
+function cat(arr){const o=new Uint8Array(arr.reduce((a,b)=>a+b.length,0));let p=0;for(const a of arr){o.set(a,p);p+=a.length;}return o;}
+async function deflate(u){const cs=new CompressionStream('deflate'),w=cs.writable.getWriter();w.write(u);w.close();return new Uint8Array(await new Response(cs.readable).arrayBuffer());}
+function pchunk(type,data){const o=new Uint8Array(12+data.length),dv=new DataView(o.buffer);dv.setUint32(0,data.length);for(let i=0;i<4;i++)o[4+i]=type.charCodeAt(i);o.set(data,8);dv.setUint32(8+data.length,crc32(o,4,8+data.length));return o;}
+async function makeApng(cvs,ticks){
+  const W=256,H=192,out=[Uint8Array.of(137,80,78,71,13,10,26,10)];
+  const u32=(...v)=>{const o=new Uint8Array(v.length*4),dv=new DataView(o.buffer);v.forEach((x,i)=>dv.setUint32(i*4,x));return o;};
+  out.push(pchunk('IHDR',cat([u32(W,H),Uint8Array.of(8,6,0,0,0)])));
+  out.push(pchunk('acTL',u32(cvs.length,0)));
+  let seq=0;
+  for(let i=0;i<cvs.length;i++){
+    const fc=new Uint8Array(14+0);const d=new DataView(new ArrayBuffer(26));
+    d.setUint32(0,seq++);d.setUint32(4,W);d.setUint32(8,H);d.setUint32(12,0);d.setUint32(16,0);d.setUint16(20,Math.max(ticks[i],1));d.setUint16(22,60);d.setUint8(24,0);d.setUint8(25,0);
+    out.push(pchunk('fcTL',new Uint8Array(d.buffer)));
+    const px=cvs[i].getContext('2d').getImageData(0,0,W,H).data,raw=new Uint8Array((W*4+1)*H);
+    for(let y=0;y<H;y++){raw[y*(W*4+1)]=0;raw.set(px.subarray(y*W*4,(y+1)*W*4),y*(W*4+1)+1);}
+    const z=await deflate(raw);
+    out.push(i===0?pchunk('IDAT',z):pchunk('fdAT',cat([u32(seq++),z])));
+  }
+  out.push(pchunk('IEND',new Uint8Array(0)));return cat(out);
+}
+async function makeWebp(cvs,ticks){
+  const le=(n,b)=>Array.from({length:b},(_,i)=>n>>(8*i)&255),T=s=>[...s].map(c=>c.charCodeAt(0)),W=256,H=192;
+  const ck=(t,body)=>cat([Uint8Array.from([...T(t),...le(body.length,4)]),body,new Uint8Array(body.length&1)]);
+  const frames=[];
+  for(let i=0;i<cvs.length;i++){
+    const blob=await new Promise(r=>cvs[i].toBlob(r,'image/webp',1)),b=new Uint8Array(await blob.arrayBuffer());
+    if(b.length<20||String.fromCharCode(...b.subarray(8,12))!=='WEBP')throw new Error('This browser cannot encode WebP (try Chrome, Edge or Firefox).');
+    const subs=[];let p=12;
+    while(p+8<=b.length){const t=String.fromCharCode(...b.subarray(p,p+4)),sz=b[p+4]|b[p+5]<<8|b[p+6]<<16|b[p+7]<<24,tot=8+sz+(sz&1);
+      if(t==='ALPH'||t==='VP8 '||t==='VP8L')subs.push(b.subarray(p,p+tot));p+=tot;}
+    if(!subs.length)throw new Error('Unexpected WebP data from the browser.');
+    const ms=Math.max(1,Math.round(ticks[i]*1000/60));
+    frames.push(ck('ANMF',cat([Uint8Array.from([0,0,0,0,0,0,...le(W-1,3),...le(H-1,3),...le(ms,3),2]),...subs])));
+  }
+  const body=cat([Uint8Array.from(T('WEBP')),ck('VP8X',Uint8Array.from([0x12,0,0,0,...le(W-1,3),...le(H-1,3)])),ck('ANIM',Uint8Array.from([0,0,0,0,0,0])),...frames]);
+  return cat([Uint8Array.from([...T('RIFF'),...le(body.length,4)]),body]);
+}
+function outCanvas(e,bg){ // 256x192 window centred on the sprite origin, like a DS screen
+  const c=document.createElement('canvas');c.width=256;c.height=192;const x=c.getContext('2d');x.imageSmoothingEnabled=false;
+  if(bg){x.fillStyle=bg;x.fillRect(0,0,256,192);}
+  const f=frameImg(e);if(S.cells)x.drawImage(f,0,32,256,192,0,0,256,192);else x.drawImage(f,0,0);
+  return c;
+}
+async function exportAnim(){
+  if(!S.gfx)return;
+  const fmt=$('xfmt').value,bg=$('xbg').value,btn=$('dlg');btn.disabled=true;
+  try{
+    $('xmsg').innerHTML='<div class="status">Encoding…</div>';
+    const cvs=S.list.map(e=>outCanvas(e,bg)),ticks=S.list.map(e=>e.dur);let data,mime,ext=fmt;
+    if(fmt==='gif'){data=makeGif(cvs.map((c,i)=>({px:c.getContext('2d').getImageData(0,0,256,192).data,delay:Math.max(2,Math.round(ticks[i]*100/60))})),256,192);mime='image/gif';}
+    else if(fmt==='apng'){data=await makeApng(cvs,ticks);mime='image/png';ext='png';}
+    else{data=await makeWebp(cvs,ticks);mime='image/webp';}
+    dl(new Blob([data],{type:mime}),nm()+'.'+ext);
+    $('xmsg').innerHTML=`<div class="status ok">Exported ${cvs.length} frames as ${fmt.toUpperCase()} (256×192, ${Math.round(data.length/1024)} KB).</div>`;
+  }catch(e){$('xmsg').innerHTML=`<div class="status err">Export failed: ${esc(e.message)}</div>`;}
+  finally{btn.disabled=false;}
+}
+function exportGifOld(){
   if(!S.gfx)return;
   try{
     const bg=$('xbg').value,fr=S.list.map(e=>{const c=cropCanvas(e,bg);return{px:c.getContext('2d').getImageData(0,0,c.width,c.height).data,delay:Math.max(2,Math.round(e.dur*100/60)),w:c.width,h:c.height};});
@@ -618,7 +678,7 @@ $('dlf').onclick=()=>S.gfx&&toPng(cropCanvas(S.list[S.fi]),nm()+'_f'+String(S.fi
 $('dls').onclick=()=>{if(!S.gfx)return;const b=bounds(),c=document.createElement('canvas');c.width=b.w*S.list.length;c.height=b.h;const x=c.getContext('2d');
   S.list.forEach((e,i)=>x.drawImage(frameImg(e),b.x,b.y,b.w,b.h,i*b.w,0,b.w,b.h));toPng(c,nm()+'_strip.png');};
 $('dlt').onclick=()=>S.gfx&&toPng(frameCanvas(-1),nm()+'_tiles.png');
-$('dlg').onclick=exportGif;
+$('dlg').onclick=exportAnim;
 const drop=$('drop'),fin=$('fin');
 async function loadFile(f){setMsg('Reading '+f.name+'…','warn');openRom(f,await f.arrayBuffer());}
 drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('dragover');});
