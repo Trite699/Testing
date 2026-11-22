@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>AAI Sprite Tool</title>
+<title>AAI ROM Browser &amp; Sprite Viewer</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{--bg-primary:#fff;--bg-secondary:#f5f5f5;--bg-success:#e6f9ee;--bg-danger:#fdecea;--bg-warn:#fff8e1;--text-primary:#111;--text-secondary:#666;--text-tertiary:#aaa;--text-success:#1a7a3f;--text-danger:#b71c1c;--text-warn:#7a5800;--border-t:rgba(0,0,0,.12);--border-s:rgba(0,0,0,.2);--border-p:rgba(0,0,0,.35);--r-md:8px;--r-lg:12px;--accent:#3a5bdc;--sel:#e4eafd;}
@@ -59,7 +59,7 @@ input[type=range]{width:100%;accent-color:var(--accent);}
 </head>
 <body>
 <div class="wrap">
-<h1>AAI Sprite Tool</h1>
+<h1>AAI ROM Browser &amp; Sprite Viewer</h1>
 <p class="sub">Open an Ace Attorney Investigations 1 or 2 <code>.nds</code> ROM, browse its file system like Tinke, drill into archives, and view Nitro sprites (NCLR / NCGR / NCER / NANR) with animations. Everything runs locally in your browser.</p>
 
 <div class="card">
@@ -84,12 +84,15 @@ input[type=range]{width:100%;accent-color:var(--accent);}
 
 <div id="p2" style="display:none"><div class="card">
   <div class="card-title">Sprite <span id="tinfo"></span></div>
+  <p class="sub">Fill the slots below from the archive you last opened: palette (.nclr / .pal4 / .pal8) and graphics (.ncgr / -img.bin) are required; cells (.ncer) and animation (.nanr) are optional. Easiest: in the ROM browser, click a file and press <b>Use as Palette / Graphics / Cells / Animation</b>. Raw .pal/-img.bin files use the “Raw graphics depth” setting.</p>
   <div class="opts" style="margin-top:0">
     <label>Palette file<select class="sel" id="ps"></select></label>
     <label>Palette bank<select class="sel" id="pb"></select></label>
     <label>Graphics<select class="sel" id="gs"></select></label>
     <label>Cells<select class="sel" id="cs"></select></label>
     <label>Animation<select class="sel" id="as"></select></label>
+    <label>Raw graphics depth<select class="sel" id="rb"><option value="4">4bpp</option><option value="8">8bpp</option></select></label>
+    <label class="chk"><input type="checkbox" id="allf"> List every file</label>
   </div>
   <div class="opts" style="margin-top:0">
     <label>Zoom<select class="sel" id="zoom"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>6</option></select></label>
@@ -144,7 +147,21 @@ function parseNds(b){
 }
 
 // ---------- archive detection ----------
+// AAI1 romfile.bin: u32 tableSize, u32 0, then u32 offsets; each offset points at [u32 size][data]
+function parseArcA1(b){
+  if(b.length<64)return null;const dv=dvOf(b),T=dv.getUint32(0,true);
+  if(T<12||T%4||T>=b.length||T>(1<<22)||dv.getUint32(4,true)!==0)return null;
+  const n=T/4-1,ents=[];let ok=0;
+  for(let i=0;i<n;i++){
+    const o=dv.getUint32(8+i*4,true);
+    if(!o){ents.push({idx:i,name:'#'+i,off:0,len:0,auto:true});continue;}
+    if(o<T||o+4>b.length||dv.getUint32(o,true)>b.length-o-4){if(i===n-1)break;return null;}
+    ents.push({idx:i,name:'#'+i,off:o+4,len:dv.getUint32(o,true),auto:true});ok++;
+  }
+  return ok>1?ents:null;
+}
 function parseArc(b){
+  const a1=parseArcA1(b);if(a1)return a1;
   if(b.length<16)return null;
   const dv=dvOf(b),T=dv.getUint32(0,true);
   if(T<8||T>=b.length||T>(1<<22))return null;
@@ -160,7 +177,7 @@ function parseArc(b){
   for(let i=0;i<offs.length;i++){
     const o=offs[i];if(!o)continue;
     let e=b.length;for(let j=i+1;j<offs.length;j++)if(offs[j]){e=offs[j];break;}
-    ents.push({idx:i,name:'#'+i,off:o,len:e-o});
+    ents.push({idx:i,name:'#'+i,off:o,len:e-o,auto:true});
   }
   return ents.length>1?ents:null;
 }
@@ -189,8 +206,10 @@ function lz(b,max=Infinity){
   }catch(e){return null;}
   return q===lim?{data:o,size}:null;
 }
-const MAGIC={RLCN:'NCLR',RGCN:'NCGR',RECN:'NCER',RNAN:'NANR',RCSN:'NSCR',RTFN:'NFTR',NARC:'NARC',BTX0:'BTX0',BMD0:'BMD0',SDAT:'SDAT',SSEQ:'SSEQ'};
-const SPR=new Set(['NCLR','NCGR','NCER','NANR','NSCR']);
+// naming follows Missingmew/phoenixtools (extract-edgeworth-romfile.c): NNNN-OOOOOOOO.ext, ext by magic / size
+const MAGIC={RLCN:'NCLR',RGCN:'NCGR',RECN:'NCER',RNAN:'NANR',RCSN:'NSCR',RCMN:'NMCR',NARC:'NARC',BTX0:'NSBTX',BMD0:'NSBMD',BCA0:'NSBCA',BTA0:'NSBTA'};
+const EXT={NSBCA:'.nsbca',NSBMD:'.nsbmd',NSBTX:'.nsbtx',NSBTA:'.nsbta',NANR:'.nanr',NCER:'.ncer',NCGR:'.ncgr',NCLR:'.nclr',NMCR:'.nmcr',NSCR:'.nscr',NARC:'.narc',NULL:'.null',PAL4:'.pal4',PAL8:'.pal8',IMG:'-img.bin',UNK:'-unk.bin'};
+const SPR=new Set(['NCLR','NCGR','NCER','NANR','NSCR','PAL4','PAL8','IMG']);
 
 // ---------- containers ----------
 let romBytes=null,nds=null,stack=[],selIdx=-1,hexOff=0,hexData=null;
@@ -204,10 +223,12 @@ function getData(c,e){ // full (decompressed) data
 }
 function tagOf(c,e){
   if(c.tags.has(e))return c.tags.get(e);
-  const r=raw(c,e),z=r.length>8?lz(r,32):null,d=z?z.data:r;
-  let m=d.length>=4?str(d,0,4):'';
-  const t={tag:MAGIC[m]||'',lz:!!z};
-  c.tags.set(e,t);return t;
+  const r=raw(c,e),z=r.length>8?lz(r,32):null,d=z?z.data:r,size=z?z.size:r.length;
+  const m=d.length>=4?str(d,0,4):'';let tag=MAGIC[m]||'';
+  if(e.auto){if(!r.length)tag='NULL';else if(!tag)tag=size===32?'PAL4':size===512?'PAL8':size%32===0?'IMG':'UNK';}
+  const t={tag,lz:!!z,size};c.tags.set(e,t);
+  if(e.auto&&!e.named){e.named=1;e.name=String(e.idx).padStart(4,'0')+'-'+hx(e.off,8).toLowerCase()+EXT[tag];}
+  return t;
 }
 function cur(){return stack[stack.length-1];}
 
@@ -247,6 +268,7 @@ function select(i){
   let a='';
   if(arc)a+='<button class="btn btn-sm btn-primary" id="aopen">Open as archive</button>';
   if(SPR.has(t.tag))a+='<button class="btn btn-sm btn-primary" id="aspr">View as sprite</button>';
+  a+=[['ps','Palette'],['gs','Graphics'],['cs','Cells'],['as','Animation']].map(([k,l])=>`<button class="btn btn-sm" id="u_${k}">Use as ${l}</button>`).join('');
   a+='<button class="btn btn-sm" id="aext">Extract'+(t.lz?' (decompressed)':'')+'</button>';
   if(t.lz)a+='<button class="btn btn-sm" id="aextr">Extract raw</button>';
   $('acts').innerHTML=a;
@@ -254,6 +276,7 @@ function select(i){
   if($('aspr'))$('aspr').onclick=()=>activate(i,'spr');
   $('aext').onclick=()=>dl(new Blob([d]),fname(e,t));
   if($('aextr'))$('aextr').onclick=()=>dl(new Blob([raw(c,e)]),fname(e,t)+'.lz');
+  for(const id of['ps','gs','cs','as'])$('u_'+id).onclick=()=>useAs(id,i);
   drawHex();
 }
 function fname(e,t){const n=e.name.split('/').pop();return e.name.startsWith('#')?cur().name.replace(/[^\w.-]/g,'_')+'_'+e.idx+'.'+(t.tag?t.tag.toLowerCase():'bin'):n;}
@@ -283,12 +306,14 @@ function blocks(d){
   return{dv,m};
 }
 function parsePal(d){
+  if(str(d,0,4)!=='RLCN'){const dv=dvOf(d),cols=[];for(let i=0;i<Math.min(d.length>>1,512);i++){const v=dv.getUint16(i*2,true);cols.push([(v&31)*255/31|0,(v>>5&31)*255/31|0,(v>>10&31)*255/31|0]);}return{cols,bpp:4};}
   const{dv,m}=blocks(d),p=m.TTLP;if(p===undefined)throw new Error('Not a palette file');
   const sz=Math.min(dv.getUint32(p+0x10,true),d.length-p-0x18),cols=[];
   for(let i=0;i<sz/2;i++){const v=dv.getUint16(p+0x18+i*2,true);cols.push([(v&31)*255/31|0,(v>>5&31)*255/31|0,(v>>10&31)*255/31|0]);}
   return{cols,bpp:dv.getUint32(p+8,true)===4?8:4};
 }
 function parseGfx(d){
+  if(str(d,0,4)!=='RGCN'){const bpp=+$('rb').value;return{bpp,data:d,tw:0,th:0,tb:bpp===4?32:64};}
   const{dv,m}=blocks(d),p=m.RAHC;if(p===undefined)throw new Error('Not a graphics file');
   const bpp=dv.getUint32(p+0xc,true)===4?8:4,sz=Math.min(dv.getUint32(p+0x18,true),d.length-p-0x20);
   return{bpp,data:d.subarray(p+0x20,p+0x20+sz),tw:dv.getUint16(p+0xa,true),th:dv.getUint16(p+8,true),tb:bpp===4?32:64};
@@ -333,7 +358,29 @@ function parseAnim(d){
 const S={c:null,pal:null,gfx:null,cells:null,anim:null,list:[],fi:0,play:true,acc:0,last:0,fc:new Map(),bank:-1,tags:{}};
 const sel=(id,h)=>{$(id).innerHTML=h;};
 function nearest(arr,i){return arr.length?arr.reduce((a,b)=>Math.abs(b-i)<Math.abs(a-i)?b:a):-1;}
+function fillSel(c,keep){
+  S.c=c;const all=$('allf').checked,ok={ps:['NCLR','PAL4','PAL8'],gs:['NCGR','IMG'],cs:['NCER'],as:['NANR']},ph={ps:'— choose palette —',gs:'— choose graphics —',cs:'— none (tile sheet) —',as:'— none (play cells) —'};
+  for(const id in ok){
+    const prev=keep?$(id).value:'',ks=[];
+    c.ents.forEach((e,k)=>{if(all||ok[id].includes(tagOf(c,e).tag))ks.push(k);});
+    $(id).innerHTML=`<option value="-1">${ph[id]}</option>`+ks.map(k=>`<option value="${k}">${esc(c.ents[k].name)}</option>`).join('');
+    if([...$(id).options].some(o=>o.value===prev))$(id).value=prev;
+  }
+}
+function nearestTag(c,i,tags){let b=-1;c.ents.forEach((e,k)=>{if(tags.includes(tagOf(c,e).tag)&&(b<0||Math.abs(k-i)<Math.abs(b-i)))b=k;});return b;}
+function useAs(id,i){
+  const c=cur();if(S.c!==c)fillSel(c,false);
+  if(![...$(id).options].some(o=>+o.value===i)){$('allf').checked=true;fillSel(c,true);}
+  $(id).value=i;showTab(2);loadSprite();
+}
 function openSprite(c,i){
+  fillSel(c,S.c===c);const t=tagOf(c,c.ents[i]).tag;
+  const want={ps:['NCLR','PAL4','PAL8'],gs:['NCGR','IMG'],cs:['NCER']};
+  for(const id in want){if(want[id].includes(t))$(id).value=i;else if(+$(id).value<0){const k=nearestTag(c,i,want[id]);if(k>=0)$(id).value=k;}}
+  if(t==='NANR')$('as').value=i;
+  showTab(2);loadSprite();
+}
+function openSpriteOld(c,i){
   S.c=c;const by={NCLR:[],NCGR:[],NCER:[],NANR:[]};
   c.ents.forEach((e,k)=>{const t=tagOf(c,e).tag;if(by[t])by[t].push(k);});
   S.by=by;
@@ -351,7 +398,7 @@ function loadSprite(resetBank){
     const pe=ent('ps'),ge=ent('gs'),ce=ent('cs'),ae=ent('as');
     S.pal=pe?parsePal(getData(S.c,pe)):null;S.gfx=ge?parseGfx(getData(S.c,ge)):null;
     S.cells=ce?parseCells(getData(S.c,ce)):null;S.anim=ae?parseAnim(getData(S.c,ae)):null;
-    if(!S.pal||!S.gfx)throw new Error('This archive needs at least one palette (NCLR) and one graphics (NCGR) file.');
+    if(!S.pal||!S.gfx)throw new Error('Pick a palette and a graphics file above — or in the ROM browser select a file and click “Use as Palette / Graphics / Cells / Animation”.');
     const nb=Math.max(1,Math.ceil(S.pal.cols.length/16));
     sel('pb','<option value="-1">Auto (per OAM)</option>'+Array.from({length:nb},(_,i)=>`<option value="${i}">Bank ${i}</option>`).join(''));
     S.bank=-1;S.fc.clear();
@@ -516,6 +563,9 @@ $('flt').oninput=renderList;$('onlyspr').onchange=renderList;
 $('hp').onclick=()=>{hexOff=Math.max(0,hexOff-512);drawHex();};
 $('hn').onclick=()=>{if(hexData&&hexOff+512<hexData.length){hexOff+=512;drawHex();}};
 ['ps','gs','cs','as'].forEach(id=>$(id).onchange=()=>loadSprite());
+$('rb').onchange=()=>{if(S.c)loadSprite();};
+$('allf').onchange=()=>{if(S.c){fillSel(S.c,true);loadSprite();}};
+function fname(e,t){return e.name.split('/').pop();}
 $('pb').onchange=()=>{S.bank=+$('pb').value;S.fc.clear();showFrame();};
 $('zoom').onchange=showFrame;
 $('shift').onchange=()=>{S.fc.clear();showFrame();};
