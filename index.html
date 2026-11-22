@@ -93,6 +93,7 @@ input[type=range]{width:100%;accent-color:var(--accent);}
     <label>Animation<select class="sel" id="as"></select></label>
     <label>Screen map (NSCR)<select class="sel" id="ns"></select></label>
     <label>Raw graphics depth<select class="sel" id="rb"><option value="4">4bpp</option><option value="8">8bpp</option></select></label>
+    <label>Scanned gfx width<select class="sel" id="sw"><option>256</option><option selected>128</option><option>64</option><option>32</option></select></label>
     <label class="chk"><input type="checkbox" id="allf"> List every file</label>
   </div>
   <div class="opts" style="margin-top:0">
@@ -209,13 +210,13 @@ function lz(b,max=Infinity){
 }
 // naming follows Missingmew/phoenixtools (extract-edgeworth-romfile.c): NNNN-OOOOOOOO.ext, ext by magic / size
 const MAGIC={RLCN:'NCLR',RGCN:'NCGR',RECN:'NCER',RNAN:'NANR',RCSN:'NSCR',RCMN:'NMCR',NARC:'NARC',BTX0:'NSBTX',BMD0:'NSBMD',BCA0:'NSBCA',BTA0:'NSBTA'};
-const EXT={NSBCA:'.nsbca',NSBMD:'.nsbmd',NSBTX:'.nsbtx',NSBTA:'.nsbta',NANR:'.nanr',NCER:'.ncer',NCGR:'.ncgr',NCLR:'.nclr',NMCR:'.nmcr',NSCR:'.nscr',NARC:'.narc',NULL:'.null',PAL4:'.pal4',PAL8:'.pal8',IMG:'-img.bin',UNK:'-unk.bin'};
+const EXT={NSBCA:'.nsbca',NSBMD:'.nsbmd',NSBTX:'.nsbtx',NSBTA:'.nsbta',NANR:'.nanr',NCER:'.ncer',NCGR:'.ncgr',NCLR:'.nclr',NMCR:'.nmcr',NSCR:'.nscr',NARC:'.narc',NULL:'.null',ARC:'.bin',PAL4:'.pal4',PAL8:'.pal8',IMG:'-img.bin',UNK:'-unk.bin'};
 const SPR=new Set(['NCLR','NCGR','NCER','NANR','NSCR','PAL4','PAL8','IMG']);
 
 // ---------- containers ----------
 let romBytes=null,nds=null,stack=[],selIdx=-1,hexOff=0,hexData=null;
 function mkContainer(name,data,ents){return{name,data,ents,tags:new Map(),cache:new Map()};}
-function raw(c,e){return c.data.subarray(e.off,e.off+e.len);}
+function raw(c,e){return (e.buf||c.data).subarray(e.off,e.off+e.len);}
 function getData(c,e){ // full (decompressed) data
   if(c.cache.has(e))return c.cache.get(e);
   const r=raw(c,e),z=lz(r),d=z?z.data:r;
@@ -227,6 +228,7 @@ function tagOf(c,e){
   const r=raw(c,e),z=r.length>8?lz(r,32):null,d=z?z.data:r,size=z?z.size:r.length;
   const m=d.length>=4?str(d,0,4):'';let tag=MAGIC[m]||'';
   if(e.auto){if(!r.length)tag='NULL';else if(!tag)tag=size===32?'PAL4':size===512?'PAL8':size%32===0?'IMG':'UNK';}
+  if(e.auto&&(tag==='IMG'||tag==='UNK')&&d.length>=4){const T0=dvOf(d).getUint32(0,true);if(T0>=8&&T0<=4096&&T0<size){const full=z?(lz(r)||{}).data:r;if(full&&parseArc(full))tag='ARC';}}
   const t={tag,lz:!!z,size};c.tags.set(e,t);
   if(e.auto&&!e.named){e.named=1;e.name=String(e.idx).padStart(4,'0')+'-'+hx(e.off,8).toLowerCase()+EXT[tag];}
   return t;
@@ -292,11 +294,13 @@ function drawHex(){
 }
 function activate(i,mode){
   const c=cur(),e=c.ents[i],d=getData(c,e),t=tagOf(c,e);
-  if(!mode)mode=SPR.has(t.tag)?'spr':'arc';
+  if(!mode)mode=(!SPR.has(t.tag)||t.tag==='IMG'||t.tag==='UNK')&&parseArc(d)?'arc':SPR.has(t.tag)?'spr':'arc';
   if(mode==='arc'){
     const ents=parseArc(d);
     if(!ents){select(i);return;}
-    stack.push(mkContainer(e.name.split('/').pop()+(e.name.startsWith('#')?'':''),d,ents));selIdx=-1;renderList();
+    const pk=nearestTag(c,i,['NCLR','PAL4','PAL8']);
+    if(pk>=0&&pk!==i){const pd=getData(c,c.ents[pk]);ents.push({idx:ents.length,name:'(parent) '+c.ents[pk].name,off:0,len:pd.length,buf:pd});}
+    stack.push(mkContainer(e.name.split('/').pop(),d,ents));selIdx=-1;renderList();
   }else openSprite(c,i);
 }
 
@@ -317,7 +321,7 @@ function parseGfx(d){
   if(str(d,0,4)!=='RGCN'){const bpp=+$('rb').value;return{bpp,data:d,tw:0,th:0,tb:bpp===4?32:64};}
   const{dv,m}=blocks(d),p=m.RAHC;if(p===undefined)throw new Error('Not a graphics file');
   const bpp=dv.getUint32(p+0xc,true)===4?8:4,sz=Math.min(dv.getUint32(p+0x18,true),d.length-p-0x20);
-  return{bpp,data:d.subarray(p+0x20,p+0x20+sz),tw:dv.getUint16(p+0xa,true),th:dv.getUint16(p+8,true),tb:bpp===4?32:64};
+  return{bpp,data:d.subarray(p+0x20,p+0x20+sz),tw:dv.getUint16(p+0xa,true),th:dv.getUint16(p+8,true),lin:dv.getUint32(p+0x14,true)===1,tb:bpp===4?32:64};
 }
 const DIMS=[[[8,8],[16,16],[32,32],[64,64]],[[16,8],[32,8],[32,16],[64,32]],[[8,16],[8,32],[16,32],[32,64]]];
 function parseCells(d){
@@ -450,7 +454,7 @@ function color(a){const b=S.bank>=0?S.bank:a;return S.pal.cols;}
 function frameCanvas(cell){
   const key=cell+':'+S.bank;if(S.fc.has(key))return S.fc.get(key);
   const g=S.gfx,cols=S.pal.cols;let c;
-  if(cell===-2){c=drawScr();}else if(cell<0){ // tile sheet
+  if(cell===-2){c=drawScr();}else if(cell<0&&g.lin){c=linSheet();}else if(cell<0){ // tile sheet
     const W=32,n=Math.max(1,g.data.length/g.tb|0),H=Math.ceil(n/W);
     c=document.createElement('canvas');c.width=W*8;c.height=H*8;
     const ctx=c.getContext('2d'),im=ctx.createImageData(c.width,c.height),bk=Math.max(S.bank,0);
@@ -466,7 +470,7 @@ function frameCanvas(cell){
     for(let k=oams.length-1;k>=0;k--){
       const o=oams[k],base=o.tile*unit,bk=S.bank>=0?S.bank:o.pal,tw=o.w>>3;
       for(let y=0;y<o.h;y++)for(let x=0;x<o.w;x++){
-        const v=px(g,base+(((y>>3)*tw+(x>>3))*g.tb),y&7,x&7);if(!v)continue;
+        const v=g.lin?pxl(g,(o.tile%(lw()>>3))*8+x,((o.tile/(lw()>>3))|0)*8+y):px(g,base+(((y>>3)*tw+(x>>3))*g.tb),y&7,x&7);if(!v)continue;
         const col=cols[g.bpp===4?bk*16+v:v];if(!col)continue;
         const X=128+o.x+(o.hf?o.w-1-x:x),Y=128+o.y+(o.vf?o.h-1-y:y);
         if(X<0||Y<0||X>255||Y>255)continue;
@@ -489,6 +493,21 @@ function frameImg(e){
   const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');x.imageSmoothingEnabled=false;
   x.translate(128+t.tx,128+t.ty);x.rotate(t.rot);x.scale(t.sx,t.sy);x.drawImage(base,-128,-128);
   S.fc.set(key,c);return c;
+}
+function lw(){return +$('sw').value;}
+function pxl(g,x,y){ // scanned (non-tiled) graphics, lw() pixels wide
+  const W=lw(),i=y*W+x;
+  if(g.bpp===8)return g.data[i]||0;
+  const b=g.data[i>>1];return b===undefined?0:(i&1?b>>4:b&15);
+}
+function linSheet(){
+  const g=S.gfx,W=lw(),H=Math.max(1,Math.ceil(g.data.length*(g.bpp===8?1:2)/W)),c=document.createElement('canvas');c.width=W;c.height=H;
+  const ctx=c.getContext('2d'),im=ctx.createImageData(W,H),bk=Math.max(S.bank,0);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const v=pxl(g,x,y);if(!v)continue;const col=S.pal.cols[g.bpp===4?bk*16+v:v]||[255,0,255],p=(y*W+x)*4;
+    im.data[p]=col[0];im.data[p+1]=col[1];im.data[p+2]=col[2];im.data[p+3]=255;
+  }
+  ctx.putImageData(im,0,0);return c;
 }
 function px(g,o,y,x){ // pixel value inside a tile at byte offset o
   if(g.bpp===4){const b=g.data[o+y*4+(x>>1)];return b===undefined?0:(x&1?b>>4:b&15);}
@@ -585,6 +604,7 @@ $('hp').onclick=()=>{hexOff=Math.max(0,hexOff-512);drawHex();};
 $('hn').onclick=()=>{if(hexData&&hexOff+512<hexData.length){hexOff+=512;drawHex();}};
 ['ps','gs','cs','as','ns'].forEach(id=>$(id).onchange=()=>loadSprite());
 $('rb').onchange=()=>{if(S.c)loadSprite();};
+$('sw').onchange=()=>{S.fc.clear();if(S.gfx)showFrame();};
 $('allf').onchange=()=>{if(S.c){fillSel(S.c,true);loadSprite();}};
 function fname(e,t){return e.name.split('/').pop();}
 $('pb').onchange=()=>{S.bank=+$('pb').value;S.fc.clear();showFrame();};
