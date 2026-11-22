@@ -91,6 +91,7 @@ input[type=range]{width:100%;accent-color:var(--accent);}
     <label>Graphics<select class="sel" id="gs"></select></label>
     <label>Cells<select class="sel" id="cs"></select></label>
     <label>Animation<select class="sel" id="as"></select></label>
+    <label>Screen map (NSCR)<select class="sel" id="ns"></select></label>
     <label>Raw graphics depth<select class="sel" id="rb"><option value="4">4bpp</option><option value="8">8bpp</option></select></label>
     <label class="chk"><input type="checkbox" id="allf"> List every file</label>
   </div>
@@ -268,7 +269,7 @@ function select(i){
   let a='';
   if(arc)a+='<button class="btn btn-sm btn-primary" id="aopen">Open as archive</button>';
   if(SPR.has(t.tag))a+='<button class="btn btn-sm btn-primary" id="aspr">View as sprite</button>';
-  a+=[['ps','Palette'],['gs','Graphics'],['cs','Cells'],['as','Animation']].map(([k,l])=>`<button class="btn btn-sm" id="u_${k}">Use as ${l}</button>`).join('');
+  a+=[['ps','Palette'],['gs','Graphics'],['cs','Cells'],['as','Animation'],['ns','Screen map']].map(([k,l])=>`<button class="btn btn-sm" id="u_${k}">Use as ${l}</button>`).join('');
   a+='<button class="btn btn-sm" id="aext">Extract'+(t.lz?' (decompressed)':'')+'</button>';
   if(t.lz)a+='<button class="btn btn-sm" id="aextr">Extract raw</button>';
   $('acts').innerHTML=a;
@@ -276,7 +277,7 @@ function select(i){
   if($('aspr'))$('aspr').onclick=()=>activate(i,'spr');
   $('aext').onclick=()=>dl(new Blob([d]),fname(e,t));
   if($('aextr'))$('aextr').onclick=()=>dl(new Blob([raw(c,e)]),fname(e,t)+'.lz');
-  for(const id of['ps','gs','cs','as'])$('u_'+id).onclick=()=>useAs(id,i);
+  for(const id of['ps','gs','cs','as','ns'])$('u_'+id).onclick=()=>useAs(id,i);
   drawHex();
 }
 function fname(e,t){const n=e.name.split('/').pop();return e.name.startsWith('#')?cur().name.replace(/[^\w.-]/g,'_')+'_'+e.idx+'.'+(t.tag?t.tag.toLowerCase():'bin'):n;}
@@ -336,6 +337,26 @@ function parseCells(d){
   }
   return{cells,shift};
 }
+function parseScr(d){
+  const{dv,m}=blocks(d),p=m.NRCS;if(p===undefined)throw new Error('Not a screen map file');
+  const w=dv.getUint16(p+8,true)||256,h=dv.getUint16(p+10,true)||192,sz=Math.min(dv.getUint32(p+0x10,true),d.length-p-0x14),map=[];
+  for(let i=0;i<sz/2;i++)map.push(dv.getUint16(p+0x14+i*2,true));
+  return{w,h,map};
+}
+function drawScr(){ // background: tiles laid out by the screen map (tile idx, h/v flip, palette bank)
+  const g=S.gfx,cols=S.pal.cols,sc=S.scr,c=document.createElement('canvas');c.width=sc.w;c.height=sc.h;
+  const ctx=c.getContext('2d'),im=ctx.createImageData(sc.w,sc.h),tpr=sc.w>>3;
+  sc.map.forEach((v,i)=>{
+    const tx=i%tpr,ty=(i/tpr)|0;if(ty*8>=sc.h)return;
+    const hf=v>>10&1,vf=v>>11&1,bk=S.bank>=0?S.bank:v>>12;
+    for(let y=0;y<8;y++)for(let x=0;x<8;x++){
+      const q=px(g,(v&0x3ff)*g.tb,vf?7-y:y,hf?7-x:x);if(!q)continue;
+      const col=cols[g.bpp===4?bk*16+q:q];if(!col)continue;
+      const p=((ty*8+y)*sc.w+tx*8+x)*4;im.data[p]=col[0];im.data[p+1]=col[1];im.data[p+2]=col[2];im.data[p+3]=255;
+    }
+  });
+  ctx.putImageData(im,0,0);return c;
+}
 function parseAnim(d){
   const{dv,m}=blocks(d),p=m.KNBA;if(p===undefined)throw new Error('Not an animation file');
   const ns=dv.getUint16(p+8,true),b=p+8,so=b+dv.getUint32(p+0xc,true),fo=b+dv.getUint32(p+0x10,true),dO=b+dv.getUint32(p+0x14,true),seqs=[];
@@ -359,7 +380,7 @@ const S={c:null,pal:null,gfx:null,cells:null,anim:null,list:[],fi:0,play:true,ac
 const sel=(id,h)=>{$(id).innerHTML=h;};
 function nearest(arr,i){return arr.length?arr.reduce((a,b)=>Math.abs(b-i)<Math.abs(a-i)?b:a):-1;}
 function fillSel(c,keep){
-  S.c=c;const all=$('allf').checked,ok={ps:['NCLR','PAL4','PAL8'],gs:['NCGR','IMG'],cs:['NCER'],as:['NANR']},ph={ps:'— choose palette —',gs:'— choose graphics —',cs:'— none (tile sheet) —',as:'— none (play cells) —'};
+  S.c=c;const all=$('allf').checked,ok={ps:['NCLR','PAL4','PAL8'],gs:['NCGR','IMG'],cs:['NCER'],as:['NANR'],ns:['NSCR']},ph={ps:'— choose palette —',gs:'— choose graphics —',cs:'— none (tile sheet) —',as:'— none (play cells) —',ns:'— none —'};
   for(const id in ok){
     const prev=keep?$(id).value:'',ks=[];
     c.ents.forEach((e,k)=>{if(all||ok[id].includes(tagOf(c,e).tag))ks.push(k);});
@@ -367,7 +388,7 @@ function fillSel(c,keep){
     if([...$(id).options].some(o=>o.value===prev))$(id).value=prev;
   }
 }
-function nearestTag(c,i,tags){let b=-1;c.ents.forEach((e,k)=>{if(tags.includes(tagOf(c,e).tag)&&(b<0||Math.abs(k-i)<Math.abs(b-i)))b=k;});return b;}
+function nearestTag(c,i,tags){let b=-1,bs=1e9;c.ents.forEach((e,k)=>{if(!tags.includes(tagOf(c,e).tag))return;const s=k<=i?i-k:1000+k-i;if(s<bs){bs=s;b=k;}});return b;}
 function useAs(id,i){
   const c=cur();if(S.c!==c)fillSel(c,false);
   if(![...$(id).options].some(o=>+o.value===i)){$('allf').checked=true;fillSel(c,true);}
@@ -375,7 +396,7 @@ function useAs(id,i){
 }
 function openSprite(c,i){
   fillSel(c,S.c===c);const t=tagOf(c,c.ents[i]).tag;
-  const want={ps:['NCLR','PAL4','PAL8'],gs:['NCGR','IMG'],cs:['NCER']};
+  const want={ps:['NCLR','PAL4','PAL8'],gs:['NCGR','IMG'],cs:['NCER'],ns:['NSCR']};
   for(const id in want){if(want[id].includes(t))$(id).value=i;else if(+$(id).value<0){const k=nearestTag(c,i,want[id]);if(k>=0)$(id).value=k;}}
   if(t==='NANR')$('as').value=i;
   showTab(2);loadSprite();
@@ -397,7 +418,7 @@ function loadSprite(resetBank){
   try{
     const pe=ent('ps'),ge=ent('gs'),ce=ent('cs'),ae=ent('as');
     S.pal=pe?parsePal(getData(S.c,pe)):null;S.gfx=ge?parseGfx(getData(S.c,ge)):null;
-    S.cells=ce?parseCells(getData(S.c,ce)):null;S.anim=ae?parseAnim(getData(S.c,ae)):null;
+    S.cells=ce?parseCells(getData(S.c,ce)):null;S.anim=ae?parseAnim(getData(S.c,ae)):null;S.scr=ent('ns')?parseScr(getData(S.c,ent('ns'))):null;
     if(!S.pal||!S.gfx)throw new Error('Pick a palette and a graphics file above — or in the ROM browser select a file and click “Use as Palette / Graphics / Cells / Animation”.');
     const nb=Math.max(1,Math.ceil(S.pal.cols.length/16));
     sel('pb','<option value="-1">Auto (per OAM)</option>'+Array.from({length:nb},(_,i)=>`<option value="${i}">Bank ${i}</option>`).join(''));
@@ -416,7 +437,7 @@ function buildAnimSel(){
 }
 function buildList(seq){
   S.fc.clear();S.fi=0;S.acc=0;
-  if(!S.cells)S.list=[{cell:-1,dur:60}];
+  if(!S.cells)S.list=[{cell:S.scr?-2:-1,dur:60}];
   else if(S.anim)S.list=(S.anim.seqs[seq]||[]).map(f=>({...f,cell:Math.min(f.cell,S.cells.cells.length-1)}));
   else S.list=S.cells.cells.map((_,i)=>({cell:i,dur:30}));
   if(!S.list.length)S.list=[{cell:0,dur:30}];
@@ -429,7 +450,7 @@ function color(a){const b=S.bank>=0?S.bank:a;return S.pal.cols;}
 function frameCanvas(cell){
   const key=cell+':'+S.bank;if(S.fc.has(key))return S.fc.get(key);
   const g=S.gfx,cols=S.pal.cols;let c;
-  if(cell<0){ // tile sheet
+  if(cell===-2){c=drawScr();}else if(cell<0){ // tile sheet
     const W=32,n=Math.max(1,g.data.length/g.tb|0),H=Math.ceil(n/W);
     c=document.createElement('canvas');c.width=W*8;c.height=H*8;
     const ctx=c.getContext('2d'),im=ctx.createImageData(c.width,c.height),bk=Math.max(S.bank,0);
@@ -474,7 +495,7 @@ function px(g,o,y,x){ // pixel value inside a tile at byte offset o
   const b=g.data[o+y*8+x];return b===undefined?0:b;
 }
 function bounds(){
-  if(!S.cells)return{x:0,y:0,w:S.gfx?frameCanvas(-1).width:16,h:S.gfx?frameCanvas(-1).height:16};
+  if(!S.cells){const f=frameCanvas(S.list[0].cell);return{x:0,y:0,w:f.width,h:f.height};}
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
   for(const e of S.list){const t=tf(e),cs=Math.cos(t.rot),sn=Math.sin(t.rot);
     for(const o of S.cells.cells[e.cell]||[])for(const[a_,b_]of[[o.x,o.y],[o.x+o.w,o.y],[o.x,o.y+o.h],[o.x+o.w,o.y+o.h]]){
@@ -562,7 +583,7 @@ $('t1').onclick=()=>showTab(1);$('t2').onclick=()=>{if(S.c)showTab(2);else{showT
 $('flt').oninput=renderList;$('onlyspr').onchange=renderList;
 $('hp').onclick=()=>{hexOff=Math.max(0,hexOff-512);drawHex();};
 $('hn').onclick=()=>{if(hexData&&hexOff+512<hexData.length){hexOff+=512;drawHex();}};
-['ps','gs','cs','as'].forEach(id=>$(id).onchange=()=>loadSprite());
+['ps','gs','cs','as','ns'].forEach(id=>$(id).onchange=()=>loadSprite());
 $('rb').onchange=()=>{if(S.c)loadSprite();};
 $('allf').onchange=()=>{if(S.c){fillSel(S.c,true);loadSprite();}};
 function fname(e,t){return e.name.split('/').pop();}
