@@ -135,7 +135,7 @@ input[type=range]{width:100%;accent-color:var(--accent);}
     </div>
   </div>
 
-  <p class="foot">Format as decoded here — .pix: u32 palette count, N × 16 BGR555 colours (index 0 transparent), then 4bpp 8×8 tiles (low nibble first). .seq: a series of animation blocks. Each is u16 0, u16 frame count, 4 more bytes, then 8-byte entries (u16 offset relative to the block start, u16 duration + flags, 4 bytes); each frame is u32 count followed by 4-byte sprites (x s8, y s8, first tile u8, attr u8: bits 7-6 size, 5-4 shape, 3-0 reserved). Sprite tiles are read in NDS-style 1D mapping, origin at the canvas centre. Unknown attribute bits are ignored.</p>
+  <p class="foot">Format as decoded here — .pix: a series of banks, each = u32 palette count, N × 16 BGR555 colours (index 0 transparent), then 4bpp 8×8 tiles (low nibble first); the 4 bytes after each .seq block's header give the bank's byte offset in the .pix. .seq: a series of animation blocks. Each is u16 0, u16 frame count, 4 more bytes, then 8-byte entries (u16 offset relative to the block start, u16 duration + flags, 4 bytes); each frame is u32 count followed by 4-byte sprites (x s8, y s8, first tile u8, attr u8: bits 7-6 size, 5-4 shape, 3 palette, 2-0 tile index bits 10-8). Sprite tiles are read in NDS-style 1D mapping, origin at the canvas centre. Unknown attribute bits are ignored.</p>
 </div>
 
 <script>
@@ -143,7 +143,7 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const DIM={'0,0':[8,8],'1,0':[16,16],'2,0':[32,32],'3,0':[64,64],'0,1':[16,8],'1,1':[32,8],'2,1':[32,16],'3,1':[64,32],'0,2':[8,16],'1,2':[8,32],'2,2':[16,32],'3,2':[32,64]};
 const S=128, CS=256; // canvas is 256x256 with origin at centre
-let pix=null,seqs=[],cur=null,pal=0,fi=0,playing=true,last=0,acc=0,fcache=new Map(),seqName='',pixName='';
+let pix=null,seqs=[],cur=null,pal=-1,fi=0,playing=true,last=0,acc=0,fcache=new Map(),seqName='',pixName='';
 
 function setMsg(t,c){ $('msg').innerHTML=t?`<div class="status ${c}"><span class="dot"></span><span>${esc(t)}</span></div>`:''; }
 function base(n){return n.replace(/\.[^.]+$/,'');}
@@ -152,13 +152,25 @@ function toPng(c,name){c.toBlob(b=>dl(b,name),'image/png');}
 
 function parsePix(b){
   if(b.length<4)throw new Error('PIX file is too small.');
-  const dv=new DataView(b.buffer,b.byteOffset,b.byteLength);
-  const n=dv.getUint32(0,true);
-  if(n<1||n>64||4+n*32>b.length)throw new Error('PIX header looks invalid (palette count '+n+').');
+  return{raw:b,banks:new Map()};
+}
+// A .pix file is a series of banks. Each starts with its own header (u32 palette count, N x 16 BGR555 colours)
+// followed by 4bpp tiles. Every animation block in the .seq names the byte offset of its bank.
+function getBank(off){
+  if(pix.banks.has(off))return pix.banks.get(off);
+  const b=pix.raw,dv=new DataView(b.buffer,b.byteOffset,b.byteLength);
+  if(off+4>b.length)throw new Error('Bank offset 0x'+off.toString(16)+' is outside the .pix file.');
+  const n=dv.getUint32(off,true);
+  if(n<1||n>64||off+4+n*32>b.length)throw new Error('No valid palette header at .pix offset 0x'+off.toString(16)+' (palette count '+n+').');
   const pals=[];
-  for(let k=0;k<n;k++){const p=[];for(let i=0;i<16;i++){const v=dv.getUint16(4+k*32+i*2,true);p.push([(v&31)*255/31|0,(v>>5&31)*255/31|0,(v>>10&31)*255/31|0,i?255:0]);}pals.push(p);}
-  const off=4+n*32,tiles=Math.floor((b.length-off)/32);
-  return{pals,tiles,data:b.subarray(off)};
+  for(let k=0;k<n;k++){const p=[];for(let i=0;i<16;i++){const v=dv.getUint16(off+4+k*32+i*2,true);p.push([(v&31)*255/31|0,(v>>5&31)*255/31|0,(v>>10&31)*255/31|0,i?255:0]);}pals.push(p);}
+  const start=off+4+n*32;
+  let end=b.length;for(const a of seqs)if(a.bank>off&&a.bank<end)end=a.bank;
+  const bank={off,pals,data:b.subarray(start,end),tiles:Math.floor((end-start)/32)};
+  pix.banks.set(off,bank);return bank;
+}
+function palFor(bank,a){ // pal=-1: per-sprite (attr bit 3), otherwise the chosen palette for everything
+  const i=pal>=0?pal:((a>>3)&1);return bank.pals[Math.min(i,bank.pals.length-1)];
 }
 function parseSeqAll(b){
   const dv=new DataView(b.buffer,b.byteOffset,b.byteLength),anims=[];
@@ -187,26 +199,27 @@ function parseSeqAll(b){
       if(u!==0&&(u&0xffff)===0&&(u>>>16)<=255)break;
       p+=4+u*4;
     }
-    anims.push({entries,frames});
+    anims.push({entries,frames,bank:dv.getUint32(pos+4,true)});
     pos=p;
   }
   return anims;
 }
-function drawFrame(ctx,sprites,palette,ox,oy){
+function drawFrame(ctx,sprites,bank,ox,oy){
   const img=ctx.getImageData(0,0,CS,CS),px=img.data;
   for(const s of sprites){
     if(!s.w)continue;
+    s.tile=s.t|((s.a&7)<<8);s.pl=palFor(bank,s.a);
     const tw=s.w>>3,th=s.h>>3;
     for(let ty=0;ty<th;ty++)for(let tx=0;tx<tw;tx++){
-      const t=s.t+ty*tw+tx; if(t>=pix.tiles)continue;
+      const t=s.tile+ty*tw+tx; if(t>=bank.tiles)continue;
       const bo=t*32;
       for(let yy=0;yy<8;yy++)for(let xx=0;xx<4;xx++){
-        const byte=pix.data[bo+yy*4+xx];
+        const byte=bank.data[bo+yy*4+xx];
         for(let k=0;k<2;k++){
           const v=k?byte>>4:byte&15; if(!v)continue;
           const X=S+s.x+tx*8+xx*2+k+ox,Y=S+s.y+ty*8+yy+oy;
           if(X<0||Y<0||X>=CS||Y>=CS)continue;
-          const c=palette[v],p=(Y*CS+X)*4;px[p]=c[0];px[p+1]=c[1];px[p+2]=c[2];px[p+3]=255;
+          const c=s.pl[v],p=(Y*CS+X)*4;px[p]=c[0];px[p+1]=c[1];px[p+2]=c[2];px[p+3]=255;
         }
       }
     }
@@ -217,7 +230,7 @@ function render(off){
   const key=pal+':'+seqName+':'+off;
   if(fcache.has(key))return fcache.get(key);
   const c=document.createElement('canvas');c.width=c.height=CS;
-  drawFrame(c.getContext('2d'),cur.frames.get(off),pix.pals[Math.min(pal,pix.pals.length-1)],0,0);
+  drawFrame(c.getContext('2d'),cur.frames.get(off),getBank(cur.bank),0,0);
   fcache.set(key,c);return c;
 }
 function bounds(a=cur){ // union bbox of all frames in current sequence, for cropping thumbs/strip
@@ -256,9 +269,14 @@ function buildTimeline(){
   });
   $('scrub').max=cur.entries.length-1;
 }
+function fillPal(s){
+  const n=getBank(s.bank).pals.length;
+  $('palsel').innerHTML='<option value="-1">Auto (per sprite)</option>'+Array.from({length:n},(_,i)=>`<option value="${i}">Palette ${i} only</option>`).join('');
+  if(pal>=n)pal=-1;$('palsel').value=pal;
+}
 function pickSeq(i){
-  const s=seqs[i];cur=s;seqName=s.name;$('seqsel').value=i;document.querySelectorAll('.ga').forEach((g,k)=>g.classList.toggle('on',k===i));fi=0;acc=0;fcache.clear();
-  buildTimeline();show();
+  const s=seqs[i];cur=s;seqName=s.name;$('seqsel').value=i;fillPal(s);document.querySelectorAll('.ga').forEach((g,k)=>g.classList.toggle('on',k===i));fi=0;acc=0;fcache.clear();
+  drawSheet();buildTimeline();show();
   const total=s.entries.filter(e=>!e.end).reduce((a,e)=>a+e.dur,0);
   $('tinfo').textContent=s.entries.length+' frames · '+s.frames.size+' unique · '+(total/60).toFixed(2)+' s';
 }
@@ -269,22 +287,21 @@ function setBg(){
   if(v!=='check'&&v!=='solid')st.style.backgroundImage='none';
 }
 function drawSheet(){
-  const W=32,H=Math.ceil(pix.tiles/W),c=$('sheet');c.width=W*8;c.height=H*8;
-  const ctx=c.getContext('2d'),img=ctx.createImageData(c.width,c.height),pl=pix.pals[Math.min(pal,pix.pals.length-1)];
-  for(let t=0;t<pix.tiles;t++)for(let y=0;y<8;y++)for(let x=0;x<4;x++){
-    const b=pix.data[t*32+y*4+x];
+  const bk=getBank(cur.bank),W=32,H=Math.ceil(bk.tiles/W),c=$('sheet');c.width=W*8;c.height=H*8;
+  const ctx=c.getContext('2d'),img=ctx.createImageData(c.width,c.height),pl=bk.pals[Math.min(Math.max(pal,0),bk.pals.length-1)];
+  for(let t=0;t<bk.tiles;t++)for(let y=0;y<8;y++)for(let x=0;x<4;x++){
+    const b=bk.data[t*32+y*4+x];
     for(let k=0;k<2;k++){const col=pl[k?b>>4:b&15],X=(t%W)*8+x*2+k,Y=((t/W)|0)*8+y,p=(Y*c.width+X)*4;img.data.set(col,p);}
   }
   ctx.putImageData(img,0,0);c.style.width=c.width*2+'px';
-  $('sheetinfo').textContent=pix.tiles+' tiles · '+pix.pals.length+' palettes';
+  $('sheetinfo').textContent='bank @0x'+bk.off.toString(16)+' · '+bk.tiles+' tiles · '+bk.pals.length+' palette'+(bk.pals.length>1?'s':'');
 }
 
 function buildGallery(){
   const g=$('gallery');g.innerHTML='';
-  const pl=pix.pals[Math.min(pal,pix.pals.length-1)];
   seqs.forEach((a,i)=>{
     const b=bounds(a),full=document.createElement('canvas');full.width=full.height=CS;
-    drawFrame(full.getContext('2d'),a.frames.get(a.entries[0].off),pl,0,0);
+    drawFrame(full.getContext('2d'),a.frames.get(a.entries[0].off),getBank(a.bank),0,0);
     const c=document.createElement('canvas');c.width=b.w;c.height=b.h;c.getContext('2d').drawImage(full,b.x,b.y,b.w,b.h,0,0,b.w,b.h);
     const d=document.createElement('div');d.className='th ga';
     c.style.aspectRatio=b.w+'/'+b.h;c.style.width='auto';c.style.height='72px';
@@ -328,13 +345,11 @@ async function loadFiles(files){
     return;
   }
   $('viewer').style.display='';
-  $('palsel').innerHTML=pix.pals.map((_,i)=>`<option value="${i}">Palette ${i}</option>`).join('');
-  pal=0;
   // prefer seq whose base name matches pix, else first
   seqs.sort((a,b)=>a.file.localeCompare(b.file)||a.idx-b.idx);
   $('seqsel').innerHTML=seqs.map((s,i)=>`<option value="${i}">${esc(s.file)} · Animation ${s.idx} (${s.entries.length} frames)</option>`).join('');
   let pi=seqs.findIndex(s=>base(s.file)===base(pixName));if(pi<0)pi=0;
-  drawSheet();buildGallery();pickSeq(pi);setBg();playing=true;$('play').textContent='Pause';
+  try{buildGallery();pickSeq(pi);}catch(e){setMsg(e.message,'err');return;}setBg();playing=true;$('play').textContent='Pause';
   if(!warn.length)setMsg('Loaded '+pixName+' + '+seqs.length+' animation'+(seqs.length>1?'s':'')+'.','ok');
 }
 
