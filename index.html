@@ -86,7 +86,7 @@ input[type=range]{width:100%;accent-color:var(--accent);}
     <div class="card-title">Load files</div>
     <label class="drop" id="drop">
       <div class="drop-icon"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
-      <span class="drop-label">Click or drop one .pix and any number of .seq files</span>
+      <span class="drop-label">Click or drop .pix and .seq files (matching names are paired)</span>
       <span class="drop-hint">e.g. animation01.pix + animation01.seq</span>
       <input type="file" id="fin" multiple>
     </label>
@@ -135,7 +135,7 @@ input[type=range]{width:100%;accent-color:var(--accent);}
     </div>
   </div>
 
-  <p class="foot">Format as decoded here — .pix: a series of banks, each = u32 palette count, N × 16 BGR555 colours (index 0 transparent), then 4bpp 8×8 tiles (low nibble first); the 4 bytes after each .seq block's header give the bank's byte offset in the .pix. .seq: a series of animation blocks. Each is u16 0, u16 frame count, 4 more bytes, then 8-byte entries (u16 offset relative to the block start, u16 duration + flags, 4 bytes); each frame is u32 count followed by 4-byte sprites (x s8, y s8, first tile u8, attr u8: bits 7-6 size, 5-4 shape, 3 palette, 2-0 tile index bits 10-8). Sprite tiles are read in NDS-style 1D mapping, origin at the canvas centre. Unknown attribute bits are ignored.</p>
+  <p class="foot">Format as decoded here — .pix: a series of banks, each = u32 palette count, N × 16 BGR555 colours (index 0 transparent), then 4bpp 8×8 tiles (low nibble first); if bit 31 of the header word is set the bank is compressed (u32 chunk-offset table, one 16-bit-word RLE chunk per sprite image, and the sprite's tile byte is a chunk index); the 4 bytes after each .seq block's header give the bank's byte offset in the .pix. .seq: a series of animation blocks. Each is u16 0, u16 frame count, 4 more bytes, then 8-byte entries (u16 offset relative to the block start, u16 duration + flags, 4 bytes); each frame is u32 count followed by 4-byte sprites (x s8, y s8, first tile u8, attr u8: bits 7-6 size, 5-4 shape, 3 palette, 2-0 tile index bits 10-8). Sprite tiles are read in NDS-style 1D mapping, origin at the canvas centre. Unknown attribute bits are ignored.</p>
 </div>
 
 <script>
@@ -143,31 +143,59 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const DIM={'0,0':[8,8],'1,0':[16,16],'2,0':[32,32],'3,0':[64,64],'0,1':[16,8],'1,1':[32,8],'2,1':[32,16],'3,1':[64,32],'0,2':[8,16],'1,2':[8,32],'2,2':[16,32],'3,2':[32,64]};
 const S=128, CS=256; // canvas is 256x256 with origin at centre
-let pix=null,seqs=[],cur=null,pal=-1,fi=0,playing=true,last=0,acc=0,fcache=new Map(),seqName='',pixName='';
+let pixes=new Map(),seqs=[],cur=null,pal=-1,fi=0,playing=true,last=0,acc=0,fcache=new Map(),seqName='';
 
 function setMsg(t,c){ $('msg').innerHTML=t?`<div class="status ${c}"><span class="dot"></span><span>${esc(t)}</span></div>`:''; }
 function base(n){return n.replace(/\.[^.]+$/,'');}
 function dl(blob,name){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),4000);}
 function toPng(c,name){c.toBlob(b=>dl(b,name),'image/png');}
 
-function parsePix(b){
+function parsePix(b,name){
   if(b.length<4)throw new Error('PIX file is too small.');
-  return{raw:b,banks:new Map()};
+  return{raw:b,name,banks:new Map()};
+}
+function normBase(n){return base(n).replace(/[ _]*\(?_?\d+_?\)?$/,'').toLowerCase();}
+function findPix(file){
+  const bn=base(file).toLowerCase();let hit=null;
+  for(const p of pixes.values())if(base(p.name).toLowerCase()===bn)return p;
+  for(const p of pixes.values())if(normBase(p.name)===normBase(file))hit=hit||p;
+  return hit||[...pixes.values()].pop()||null;
+}
+function unrle(b){ // 16-bit word RLE: control word bit15 = repeat next word, low 15 bits = count; otherwise copy that many literal words
+  const out=[];let i=0;
+  while(i+2<=b.length){
+    const c=b[i]|b[i+1]<<8;i+=2;const n=c&0x7fff;
+    if(c&0x8000){if(i+2>b.length)break;const lo=b[i],hi=b[i+1];i+=2;for(let k=0;k<n;k++)out.push(lo,hi);}
+    else{const e=Math.min(b.length,i+n*2);for(;i<e;i++)out.push(b[i]);}
+  }
+  return Uint8Array.from(out);
 }
 // A .pix file is a series of banks. Each starts with its own header (u32 palette count, N x 16 BGR555 colours)
 // followed by 4bpp tiles. Every animation block in the .seq names the byte offset of its bank.
-function getBank(off){
-  if(pix.banks.has(off))return pix.banks.get(off);
-  const b=pix.raw,dv=new DataView(b.buffer,b.byteOffset,b.byteLength);
-  if(off+4>b.length)throw new Error('Bank offset 0x'+off.toString(16)+' is outside the .pix file.');
-  const n=dv.getUint32(off,true);
-  if(n<1||n>64||off+4+n*32>b.length)throw new Error('No valid palette header at .pix offset 0x'+off.toString(16)+' (palette count '+n+').');
+function getBank(a){
+  const px=a.pix,off=a.bank,key=off;
+  if(!px)throw new Error('No .pix file loaded for '+a.file+'.');
+  if(px.banks.has(key))return px.banks.get(key);
+  const b=px.raw,dv=new DataView(b.buffer,b.byteOffset,b.byteLength);
+  if(off+4>b.length)throw new Error('Bank offset 0x'+off.toString(16)+' is outside '+px.name+'.');
+  const h=dv.getUint32(off,true),n=h&0x7fffffff,comp=h>>>31;
+  if(n<1||n>64||off+4+n*32>b.length)throw new Error('No valid palette header at '+px.name+' offset 0x'+off.toString(16)+' (header '+h.toString(16)+').');
   const pals=[];
   for(let k=0;k<n;k++){const p=[];for(let i=0;i<16;i++){const v=dv.getUint16(off+4+k*32+i*2,true);p.push([(v&31)*255/31|0,(v>>5&31)*255/31|0,(v>>10&31)*255/31|0,i?255:0]);}pals.push(p);}
   const start=off+4+n*32;
-  let end=b.length;for(const a of seqs)if(a.bank>off&&a.bank<end)end=a.bank;
-  const bank={off,pals,data:b.subarray(start,end),tiles:Math.floor((end-start)/32)};
-  pix.banks.set(off,bank);return bank;
+  let end=b.length;for(const x of seqs)if(x.pix===px&&x.bank>off&&x.bank<end)end=x.bank;
+  let bank;
+  if(comp){
+    // compressed bank: u32 chunk offset table (relative to table start), one RLE-compressed chunk per sprite image
+    const cnt=dv.getUint32(start,true)/4|0;
+    if(cnt<1||cnt>4096||start+cnt*4>end)throw new Error('Bad chunk table in '+px.name+' at 0x'+start.toString(16)+'.');
+    const tab=[];for(let i=0;i<cnt;i++)tab.push(dv.getUint32(start+i*4,true));tab.push(end-start);
+    const chunks=[];let tot=0;
+    for(let i=0;i<cnt;i++){const c=unrle(b.subarray(start+tab[i],start+Math.max(tab[i],tab[i+1])));chunks.push(c);tot+=c.length;}
+    const data=new Uint8Array(tot);let p=0;for(const c of chunks){data.set(c,p);p+=c.length;}
+    bank={off,pals,chunks,comp:true,data,tiles:tot>>5};
+  }else bank={off,pals,data:b.subarray(start,end),tiles:Math.floor((end-start)/32)};
+  px.banks.set(key,bank);return bank;
 }
 function palFor(bank,a){ // pal=-1: per-sprite (attr bit 3), otherwise the chosen palette for everything
   const i=pal>=0?pal:((a>>3)&1);return bank.pals[Math.min(i,bank.pals.length-1)];
@@ -211,10 +239,11 @@ function drawFrame(ctx,sprites,bank,ox,oy){
     s.tile=s.t|((s.a&7)<<8);s.pl=palFor(bank,s.a);
     const tw=s.w>>3,th=s.h>>3;
     for(let ty=0;ty<th;ty++)for(let tx=0;tx<tw;tx++){
-      const t=s.tile+ty*tw+tx; if(t>=bank.tiles)continue;
-      const bo=t*32;
+      let buf,bo;
+      if(bank.chunks){buf=bank.chunks[s.tile];bo=(ty*tw+tx)*32;}else{buf=bank.data;bo=(s.tile+ty*tw+tx)*32;}
+      if(!buf||bo+32>buf.length)continue;
       for(let yy=0;yy<8;yy++)for(let xx=0;xx<4;xx++){
-        const byte=bank.data[bo+yy*4+xx];
+        const byte=buf[bo+yy*4+xx];
         for(let k=0;k<2;k++){
           const v=k?byte>>4:byte&15; if(!v)continue;
           const X=S+s.x+tx*8+xx*2+k+ox,Y=S+s.y+ty*8+yy+oy;
@@ -230,7 +259,7 @@ function render(off){
   const key=pal+':'+seqName+':'+off;
   if(fcache.has(key))return fcache.get(key);
   const c=document.createElement('canvas');c.width=c.height=CS;
-  drawFrame(c.getContext('2d'),cur.frames.get(off),getBank(cur.bank),0,0);
+  drawFrame(c.getContext('2d'),cur.frames.get(off),getBank(cur),0,0);
   fcache.set(key,c);return c;
 }
 function bounds(a=cur){ // union bbox of all frames in current sequence, for cropping thumbs/strip
@@ -270,7 +299,7 @@ function buildTimeline(){
   $('scrub').max=cur.entries.length-1;
 }
 function fillPal(s){
-  const n=getBank(s.bank).pals.length;
+  const n=getBank(s).pals.length;
   $('palsel').innerHTML='<option value="-1">Auto (per sprite)</option>'+Array.from({length:n},(_,i)=>`<option value="${i}">Palette ${i} only</option>`).join('');
   if(pal>=n)pal=-1;$('palsel').value=pal;
 }
@@ -287,21 +316,21 @@ function setBg(){
   if(v!=='check'&&v!=='solid')st.style.backgroundImage='none';
 }
 function drawSheet(){
-  const bk=getBank(cur.bank),W=32,H=Math.ceil(bk.tiles/W),c=$('sheet');c.width=W*8;c.height=H*8;
+  const bk=getBank(cur),W=32,H=Math.ceil(bk.tiles/W),c=$('sheet');c.width=W*8;c.height=H*8;
   const ctx=c.getContext('2d'),img=ctx.createImageData(c.width,c.height),pl=bk.pals[Math.min(Math.max(pal,0),bk.pals.length-1)];
   for(let t=0;t<bk.tiles;t++)for(let y=0;y<8;y++)for(let x=0;x<4;x++){
     const b=bk.data[t*32+y*4+x];
     for(let k=0;k<2;k++){const col=pl[k?b>>4:b&15],X=(t%W)*8+x*2+k,Y=((t/W)|0)*8+y,p=(Y*c.width+X)*4;img.data.set(col,p);}
   }
   ctx.putImageData(img,0,0);c.style.width=c.width*2+'px';
-  $('sheetinfo').textContent='bank @0x'+bk.off.toString(16)+' · '+bk.tiles+' tiles · '+bk.pals.length+' palette'+(bk.pals.length>1?'s':'');
+  $('sheetinfo').textContent=(bk.comp?'compressed bank':'bank')+' @0x'+bk.off.toString(16)+' · '+bk.tiles+' tiles · '+bk.pals.length+' palette'+(bk.pals.length>1?'s':'');
 }
 
 function buildGallery(){
   const g=$('gallery');g.innerHTML='';
   seqs.forEach((a,i)=>{
     const b=bounds(a),full=document.createElement('canvas');full.width=full.height=CS;
-    drawFrame(full.getContext('2d'),a.frames.get(a.entries[0].off),getBank(a.bank),0,0);
+    drawFrame(full.getContext('2d'),a.frames.get(a.entries[0].off),getBank(a),0,0);
     const c=document.createElement('canvas');c.width=b.w;c.height=b.h;c.getContext('2d').drawImage(full,b.x,b.y,b.w,b.h,0,0,b.w,b.h);
     const d=document.createElement('div');d.className='th ga';
     c.style.aspectRatio=b.w+'/'+b.h;c.style.width='auto';c.style.height='72px';
@@ -334,23 +363,24 @@ async function loadFiles(files){
   for(const f of files){
     const n=f.name.toLowerCase(),b=new Uint8Array(await f.arrayBuffer());
     try{
-      if(n.endsWith('.pix')){pix=parsePix(b);pixName=f.name;fcache.clear();}
+      if(n.endsWith('.pix')){pixes.set(f.name,parsePix(b,f.name));fcache.clear();}
       else if(n.endsWith('.seq')){const all=parseSeqAll(b);seqs=seqs.filter(x=>x.file!==f.name);all.forEach((a,k)=>{a.file=f.name;a.idx=k;a.name=base(f.name)+'_anim'+String(k).padStart(2,'0');seqs.push(a);});}
       else warn.push(f.name+': not a .pix or .seq file');
     }catch(e){warn.push(f.name+': '+e.message);}
   }
   if(warn.length)setMsg(warn.join(' · '),'err');
-  if(!pix||!seqs.length){
-    if(!warn.length)setMsg(!pix?'Now add the matching .pix file.':'Now add a .seq file.','warn');
+  if(!pixes.size||!seqs.length){
+    if(!warn.length)setMsg(!pixes.size?'Now add the matching .pix file.':'Now add a .seq file.','warn');
     return;
   }
+  for(const a of seqs)a.pix=findPix(a.file);
   $('viewer').style.display='';
   // prefer seq whose base name matches pix, else first
   seqs.sort((a,b)=>a.file.localeCompare(b.file)||a.idx-b.idx);
   $('seqsel').innerHTML=seqs.map((s,i)=>`<option value="${i}">${esc(s.file)} · Animation ${s.idx} (${s.entries.length} frames)</option>`).join('');
-  let pi=seqs.findIndex(s=>base(s.file)===base(pixName));if(pi<0)pi=0;
+  const lastSeq=[...files].map(f=>f.name).filter(n=>/\.seq$/i.test(n)).pop();let pi=seqs.findIndex(s=>s.file===lastSeq);if(pi<0)pi=0;
   try{buildGallery();pickSeq(pi);}catch(e){setMsg(e.message,'err');return;}setBg();playing=true;$('play').textContent='Pause';
-  if(!warn.length)setMsg('Loaded '+pixName+' + '+seqs.length+' animation'+(seqs.length>1?'s':'')+'.','ok');
+  if(!warn.length)setMsg('Loaded '+pixes.size+' .pix + '+seqs.length+' animation'+(seqs.length>1?'s':'')+'.','ok');
 }
 
 const drop=$('drop'),fin=$('fin');
@@ -369,7 +399,7 @@ $('scrub').oninput=()=>{playing=false;$('play').textContent='Play';fi=+$('scrub'
 $('dlframe').onclick=()=>{const b=bounds(),c=document.createElement('canvas');c.width=b.w;c.height=b.h;c.getContext('2d').drawImage(render(cur.entries[fi].off),b.x,b.y,b.w,b.h,0,0,b.w,b.h);toPng(c,base(seqName)+'_f'+String(fi).padStart(2,'0')+'.png');};
 $('dlall').onclick=()=>{const b=bounds(),n=cur.entries.length,c=document.createElement('canvas');c.width=b.w*n;c.height=b.h;const x=c.getContext('2d');
   cur.entries.forEach((e,i)=>x.drawImage(render(e.off),b.x,b.y,b.w,b.h,i*b.w,0,b.w,b.h));toPng(c,base(seqName)+'_strip.png');};
-$('dlsheet').onclick=()=>toPng($('sheet'),base(pixName)+'_tiles.png');
+$('dlsheet').onclick=()=>toPng($('sheet'),base(cur.pix.name)+'_tiles.png');
 requestAnimationFrame(tick);
 </script>
 </body>
