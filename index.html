@@ -3,403 +3,470 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>.SEQ / .PIX Animation Viewer</title>
+<title>cpac_2d Asset Viewer</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-:root{
-  --bg-primary:#fff;--bg-secondary:#f5f5f5;--bg-success:#e6f9ee;--bg-danger:#fdecea;--bg-warn:#fff8e1;
-  --text-primary:#111;--text-secondary:#666;--text-tertiary:#aaa;
-  --text-success:#1a7a3f;--text-danger:#b71c1c;--text-warn:#7a5800;
-  --border-t:rgba(0,0,0,0.12);--border-s:rgba(0,0,0,0.2);--border-p:rgba(0,0,0,0.35);
-  --r-md:8px;--r-lg:12px;--accent:#3a5bdc;
-}
-@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg-primary:#1e1e1e;--bg-secondary:#2a2a2a;--bg-success:#0d3320;--bg-danger:#3b1010;--bg-warn:#2a2000;
-  --text-primary:#f0f0f0;--text-secondary:#aaa;--text-tertiary:#666;
-  --text-success:#4caf82;--text-danger:#f08080;--text-warn:#e6c040;
-  --border-t:rgba(255,255,255,0.1);--border-s:rgba(255,255,255,0.2);--border-p:rgba(255,255,255,0.35);--accent:#7d9bff;}}
-:root[data-theme="dark"]{
-  --bg-primary:#1e1e1e;--bg-secondary:#2a2a2a;--bg-success:#0d3320;--bg-danger:#3b1010;--bg-warn:#2a2000;
-  --text-primary:#f0f0f0;--text-secondary:#aaa;--text-tertiary:#666;
-  --text-success:#4caf82;--text-danger:#f08080;--text-warn:#e6c040;
-  --border-t:rgba(255,255,255,0.1);--border-s:rgba(255,255,255,0.2);--border-p:rgba(255,255,255,0.35);--accent:#7d9bff;}
+:root{--bg-primary:#fff;--bg-secondary:#f5f5f5;--bg-success:#e6f9ee;--bg-danger:#fdecea;--bg-warn:#fff8e1;--text-primary:#111;--text-secondary:#666;--text-tertiary:#aaa;--text-success:#1a7a3f;--text-danger:#b71c1c;--text-warn:#7a5800;--border-t:rgba(0,0,0,.12);--border-s:rgba(0,0,0,.2);--border-p:rgba(0,0,0,.35);--r-md:8px;--r-lg:12px;--accent:#3a5bdc;}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg-primary:#1e1e1e;--bg-secondary:#2a2a2a;--bg-success:#0d3320;--bg-danger:#3b1010;--bg-warn:#2a2000;--text-primary:#f0f0f0;--text-secondary:#aaa;--text-tertiary:#666;--text-success:#4caf82;--text-danger:#f08080;--text-warn:#e6c040;--border-t:rgba(255,255,255,.1);--border-s:rgba(255,255,255,.2);--border-p:rgba(255,255,255,.35);--accent:#7d9bff;}}
+:root[data-theme="dark"]{--bg-primary:#1e1e1e;--bg-secondary:#2a2a2a;--bg-success:#0d3320;--bg-danger:#3b1010;--bg-warn:#2a2000;--text-primary:#f0f0f0;--text-secondary:#aaa;--text-tertiary:#666;--text-success:#4caf82;--text-danger:#f08080;--text-warn:#e6c040;--border-t:rgba(255,255,255,.1);--border-s:rgba(255,255,255,.2);--border-p:rgba(255,255,255,.35);--accent:#7d9bff;}
 html{scroll-padding-top:env(safe-area-inset-top,0px);}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--text-primary);background:var(--bg-secondary);min-height:100vh;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);}
-.wrap{max-width:960px;margin:0 auto;padding:2rem 1rem 4rem;}
+.wrap{max-width:1000px;margin:0 auto;padding:2rem 1rem 4rem;}
 h1{font-size:22px;font-weight:500;margin-bottom:4px;}
 .sub{font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.5;}
 .sub code{background:var(--bg-primary);padding:1px 5px;border-radius:4px;font-family:monospace;}
-.card{background:var(--bg-primary);border:0.5px solid var(--border-t);border-radius:var(--r-lg);padding:1rem 1.25rem;margin-bottom:12px;}
+.card{background:var(--bg-primary);border:.5px solid var(--border-t);border-radius:var(--r-lg);padding:1rem 1.25rem;margin-bottom:12px;}
 .card-title{font-size:11px;font-weight:500;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
 .card-title-right{font-size:11px;font-weight:400;color:var(--text-tertiary);text-transform:none;letter-spacing:0;}
-.drop{display:flex;flex-direction:column;align-items:center;gap:6px;border:1.5px dashed var(--border-s);border-radius:var(--r-md);padding:1.5rem 1rem;text-align:center;cursor:pointer;transition:border-color .15s;position:relative;}
+.drop{display:flex;flex-direction:column;align-items:center;gap:6px;border:1.5px dashed var(--border-s);border-radius:var(--r-md);padding:1.5rem 1rem;text-align:center;cursor:pointer;position:relative;}
 .drop:hover,.drop.dragover{border-color:var(--border-p);}
 .drop input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
-.drop-icon{width:32px;height:32px;border-radius:50%;background:var(--bg-secondary);display:flex;align-items:center;justify-content:center;}
-.drop-icon svg{width:16px;height:16px;stroke:var(--text-secondary);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
 .drop-label{font-size:13.5px;font-weight:500;}
 .drop-hint{font-size:11.5px;color:var(--text-tertiary);}
-.meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;}
+.meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:10px;}
 .metric{background:var(--bg-secondary);border-radius:var(--r-md);padding:8px 10px;min-width:0;}
 .metric-label{font-size:11px;color:var(--text-secondary);margin-bottom:2px;}
 .metric-val{font-size:13px;font-weight:500;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .btn-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
-.btn{font-family:inherit;font-size:13px;font-weight:500;padding:7px 16px;border-radius:var(--r-md);border:0.5px solid var(--border-s);background:transparent;color:var(--text-primary);cursor:pointer;transition:background .12s;white-space:nowrap;}
+.btn{font-family:inherit;font-size:13px;font-weight:500;padding:7px 16px;border-radius:var(--r-md);border:.5px solid var(--border-s);background:transparent;color:var(--text-primary);cursor:pointer;white-space:nowrap;}
 .btn:hover:not(:disabled){background:var(--bg-secondary);}
-.btn:active:not(:disabled){transform:scale(0.98);}
 .btn:disabled{opacity:.35;cursor:default;}
 .btn-primary{background:var(--text-primary);color:var(--bg-primary);border-color:transparent;}
 .btn-primary:hover:not(:disabled){opacity:.88;background:var(--text-primary);}
 .btn-sm{font-size:11.5px;padding:5px 11px;border-radius:6px;}
+.tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
+.tab{font-family:inherit;font-size:13px;font-weight:500;padding:7px 14px;border-radius:var(--r-md);border:.5px solid var(--border-s);background:var(--bg-primary);color:var(--text-secondary);cursor:pointer;}
+.tab.on{background:var(--text-primary);color:var(--bg-primary);border-color:transparent;}
 .status{font-size:13px;padding:7px 11px;border-radius:var(--r-md);margin-top:10px;background:var(--bg-secondary);color:var(--text-secondary);display:flex;gap:6px;}
 .status.ok{background:var(--bg-success);color:var(--text-success);}
 .status.err{background:var(--bg-danger);color:var(--text-danger);}
 .status.warn{background:var(--bg-warn);color:var(--text-warn);}
 .dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;margin-top:5px;}
-.sel{font-family:inherit;font-size:12px;padding:6px 10px;border-radius:6px;border:0.5px solid var(--border-s);background:var(--bg-primary);color:var(--text-primary);max-width:100%;}
+.sel{font-family:inherit;font-size:12px;padding:6px 10px;border-radius:6px;border:.5px solid var(--border-s);background:var(--bg-primary);color:var(--text-primary);max-width:100%;}
 .opts{display:flex;align-items:flex-end;gap:14px;margin:12px 0;flex-wrap:wrap;}
 .opts label{display:flex;flex-direction:column;gap:4px;font-size:11.5px;font-weight:500;color:var(--text-secondary);min-width:0;}
 .opts label.chk{flex-direction:row;align-items:center;gap:6px;padding-bottom:6px;}
 .hint{font-size:11.5px;color:var(--text-tertiary);margin-top:8px;line-height:1.5;}
-.stage{border-radius:var(--r-md);overflow:auto;display:flex;align-items:center;justify-content:center;min-height:260px;background:
-  linear-gradient(45deg,rgba(128,128,128,.25) 25%,transparent 25%),linear-gradient(-45deg,rgba(128,128,128,.25) 25%,transparent 25%),
-  linear-gradient(45deg,transparent 75%,rgba(128,128,128,.25) 75%),linear-gradient(-45deg,transparent 75%,rgba(128,128,128,.25) 75%);
-  background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0;}
+.stage{border-radius:var(--r-md);overflow:auto;display:flex;align-items:center;justify-content:center;min-height:240px;background:linear-gradient(45deg,rgba(128,128,128,.25) 25%,transparent 25%),linear-gradient(-45deg,rgba(128,128,128,.25) 25%,transparent 25%),linear-gradient(45deg,transparent 75%,rgba(128,128,128,.25) 75%),linear-gradient(-45deg,transparent 75%,rgba(128,128,128,.25) 75%);background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0;}
 .stage.solid{background:var(--bg-secondary);}
 .stage canvas{image-rendering:pixelated;display:block;max-width:none;}
 .tl{display:flex;gap:6px;overflow-x:auto;padding:4px 0 8px;margin-top:10px;}
+.tl.wrapx{flex-wrap:wrap;overflow:visible;max-height:420px;overflow-y:auto;}
 .th{flex:0 0 auto;background:var(--bg-secondary);border:1.5px solid transparent;border-radius:6px;padding:4px;cursor:pointer;text-align:center;font-size:10.5px;color:var(--text-tertiary);font-family:monospace;}
 .th.on{border-color:var(--accent);color:var(--text-primary);}
-.th canvas{display:block;image-rendering:pixelated;width:64px;height:64px;}
+.th canvas{display:block;image-rendering:pixelated;}
 input[type=range]{width:100%;accent-color:var(--accent);}
-.sheet{max-height:360px;overflow:auto;border-radius:var(--r-md);background:var(--bg-secondary);}
-.sheet canvas{image-rendering:pixelated;display:block;margin:auto;}
 .foot{font-size:11px;color:var(--text-tertiary);margin-top:24px;line-height:1.6;}
+.hide{display:none!important;}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>.SEQ / .PIX Animation Viewer</h1>
-  <p class="sub">Plays sprite animations stored as a <code>.pix</code> tile sheet (BGR555 palettes + 4bpp 8×8 tiles) and one or more <code>.seq</code> files (each can hold many animations back to back). Everything runs locally in your browser.</p>
+  <h1>cpac_2d Asset Viewer</h1>
+  <p class="sub">Views the extracted <code>cpac2d.bin</code> assets from Apollo Justice (DS): background images (<code>w/h header + palette + 8×8 tiles</code>), <code>.nanr</code> sprite animations with their cell banks and tiles, and any raw tile or palette data. Everything runs locally in your browser.</p>
 
   <div class="card">
     <div class="card-title">Load files</div>
     <label class="drop" id="drop">
-      <div class="drop-icon"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
-      <span class="drop-label">Click or drop .pix and .seq files (matching names are paired)</span>
-      <span class="drop-hint">e.g. animation01.pix + animation01.seq</span>
+      <span class="drop-label">Click or drop files / a whole subarc folder's contents</span>
+      <span class="drop-hint">e.g. all of subarc03 (animations) or subarc04 (backgrounds). Related files are paired by position.</span>
       <input type="file" id="fin" multiple>
     </label>
     <div id="msg"></div>
   </div>
 
-  <div id="viewer" style="display:none">
-    <div class="card">
-      <div class="card-title">Animation <span class="card-title-right" id="tinfo"></span></div>
-      <div class="opts" style="margin-top:0">
-        <label>Animation<select class="sel" id="seqsel"></select></label>
-        <label>Palette<select class="sel" id="palsel"></select></label>
-        <label>Zoom<select class="sel" id="zoom"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>6</option></select></label>
-        <label>Speed<select class="sel" id="speed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label>
-        <label>Background<select class="sel" id="bg"><option value="check">Checker</option><option value="solid">Solid</option><option value="#ffffff">White</option><option value="#000000">Black</option><option value="#00b140">Green</option></select></label>
-      </div>
-      <div class="stage" id="stage"><canvas id="cv"></canvas></div>
-      <div class="opts">
-        <div class="btn-row">
-          <button class="btn btn-primary" id="play">Pause</button>
-          <button class="btn" id="prev">◀ Step</button>
-          <button class="btn" id="next">Step ▶</button>
-          <button class="btn" id="pa">⏮ Prev anim</button>
-          <button class="btn" id="na">Next anim ⏭</button>
+  <div id="viewer" class="hide">
+    <div class="tabs">
+      <button class="tab on" data-m="img">Images <span id="cImg"></span></button>
+      <button class="tab" data-m="anim">Animations <span id="cAnim"></span></button>
+      <button class="tab" data-m="raw">Raw tiles</button>
+    </div>
+
+    <!-- IMAGES -->
+    <div id="m-img">
+      <div class="card">
+        <div class="card-title">Image <span class="card-title-right" id="iinfo"></span></div>
+        <div class="opts" style="margin-top:0">
+          <label>Zoom<select class="sel" id="izoom"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label>
+          <label>Background<select class="sel" id="ibg"><option value="check">Checker</option><option value="solid">Solid</option><option value="#ffffff">White</option><option value="#000000">Black</option></select></label>
+          <button class="btn btn-sm" id="idl">Download PNG</button>
         </div>
-        <label class="chk"><input type="checkbox" id="loop" checked> Loop</label>
-        <label class="chk"><input type="checkbox" id="boxes"> Sprite boxes</label>
+        <div class="stage" id="istage"><canvas id="icv"></canvas></div>
       </div>
-      <input type="range" id="scrub" min="0" max="0" value="0">
-      <div class="tl" id="tl"></div>
-      <div class="meta-grid" id="meta"></div>
-      <div class="btn-row" style="margin-top:12px">
-        <button class="btn btn-sm" id="dlframe">Download frame PNG</button>
-        <button class="btn btn-sm" id="dlall">Download all frames (strip PNG)</button>
-        <button class="btn btn-sm" id="dlsheet">Download tile sheet PNG</button>
+      <div class="card">
+        <div class="card-title">All images <span class="card-title-right">click one to view it</span></div>
+        <div class="tl wrapx" id="igal"></div>
       </div>
-      <p class="hint">Frame durations are in 1/60 s ticks. The low byte of the duration field is the time; the high byte holds flags (shown per frame). 254/255 is treated as the end marker (held, or skipped when looping).</p>
     </div>
-    <div class="card">
-      <div class="card-title">All animations <span class="card-title-right">click one to play it</span></div>
-      <div class="tl" id="gallery" style="flex-wrap:wrap;overflow:visible"></div>
+
+    <!-- ANIMATIONS -->
+    <div id="m-anim" class="hide">
+      <div class="card">
+        <div class="card-title">Animation <span class="card-title-right" id="tinfo"></span></div>
+        <div class="opts" style="margin-top:0">
+          <label>.nanr<select class="sel" id="nsel"></select></label>
+          <label>Sequence<select class="sel" id="qsel"></select></label>
+          <label>Cell bank<select class="sel" id="csel"></select></label>
+          <label>Tiles<select class="sel" id="tsel"></select></label>
+        </div>
+        <div class="opts" style="margin-top:0">
+          <label>Palette source<select class="sel" id="psel"></select></label>
+          <label>Palette row<select class="sel" id="prow"></select></label>
+          <label>Tile mapping<select class="sel" id="map"><option value="1d">1D (sequential)</option><option value="2d">2D (32 tiles/row)</option></select></label>
+          <label>Tile index ×<select class="sel" id="step"><option>1</option><option>2</option><option>4</option><option>8</option></select></label>
+        </div>
+        <div class="opts" style="margin-top:0">
+          <label>Zoom<select class="sel" id="zoom"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>6</option></select></label>
+          <label>Speed<select class="sel" id="speed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label>
+          <label>Background<select class="sel" id="bg"><option value="check">Checker</option><option value="solid">Solid</option><option value="#ffffff">White</option><option value="#000000">Black</option><option value="#00b140">Green</option></select></label>
+        </div>
+        <div class="stage" id="stage"><canvas id="cv"></canvas></div>
+        <div class="opts">
+          <div class="btn-row">
+            <button class="btn btn-primary" id="play">Pause</button>
+            <button class="btn" id="prev">◀ Step</button>
+            <button class="btn" id="next">Step ▶</button>
+            <button class="btn" id="pa">⏮ Prev</button>
+            <button class="btn" id="na">Next ⏭</button>
+          </div>
+          <label class="chk"><input type="checkbox" id="loop" checked> Loop</label>
+          <label class="chk"><input type="checkbox" id="boxes"> Sprite boxes</label>
+        </div>
+        <input type="range" id="scrub" min="0" max="0" value="0">
+        <div class="tl" id="tl"></div>
+        <div class="meta-grid" id="meta"></div>
+        <div class="btn-row" style="margin-top:12px">
+          <button class="btn btn-sm" id="dlframe">Download frame PNG</button>
+          <button class="btn btn-sm" id="dlall">Download all frames (strip PNG)</button>
+        </div>
+        <p class="hint">Durations are in 1/60 s ticks. If the sprite looks scrambled, try the other tile mapping or tile index ×. Sprite palettes are not stored with the animation, so pick a palette source (any loaded image or raw palette file).</p>
+      </div>
+      <div class="card">
+        <div class="card-title">All .nanr files <span class="card-title-right">first frame of each, click to open</span></div>
+        <div class="tl wrapx" id="agal"></div>
+      </div>
     </div>
-    <div class="card">
-      <div class="card-title">Tile sheet <span class="card-title-right" id="sheetinfo"></span></div>
-      <div class="sheet"><canvas id="sheet"></canvas></div>
+
+    <!-- RAW -->
+    <div id="m-raw" class="hide">
+      <div class="card">
+        <div class="card-title">Raw tile data <span class="card-title-right" id="rinfo"></span></div>
+        <div class="opts" style="margin-top:0">
+          <label>File<select class="sel" id="rsel"></select></label>
+          <label>Depth<select class="sel" id="rbpp"><option value="4">4bpp</option><option value="8">8bpp</option></select></label>
+          <label>Layout<select class="sel" id="rlay"><option value="tile">8×8 tiles</option><option value="lin">Linear</option></select></label>
+          <label>Tiles per row<select class="sel" id="rw"><option>8</option><option>16</option><option selected>32</option><option>64</option></select></label>
+          <label>Skip bytes<input class="sel" id="rskip" type="number" value="0" min="0" style="width:90px"></label>
+        </div>
+        <div class="opts" style="margin-top:0">
+          <label>Palette source<select class="sel" id="rpsel"></select></label>
+          <label>Palette offset (bytes)<input class="sel" id="rpoff" type="number" value="0" min="0" style="width:90px"></label>
+          <label>Palette row<select class="sel" id="rprow"></select></label>
+          <label>Zoom<select class="sel" id="rzoom"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label>
+          <button class="btn btn-sm" id="rdl">Download PNG</button>
+        </div>
+        <div class="stage" id="rstage" style="max-height:600px"><canvas id="rcv"></canvas></div>
+        <p class="hint">For files that start with a 32-byte palette, set Skip bytes to 32 and Palette source to “this file”.</p>
+      </div>
     </div>
   </div>
 
-  <p class="foot">Format as decoded here — .pix: a series of banks, each = u32 palette count, N × 16 BGR555 colours (index 0 transparent), then 4bpp 8×8 tiles (low nibble first); if bit 31 of the header word is set the bank is compressed (u32 chunk-offset table, one 16-bit-word RLE chunk per sprite image, and the sprite's tile byte is a chunk index); the 4 bytes after each .seq block's header give the bank's byte offset in the .pix. .seq: a series of animation blocks. Each is u16 0, u16 frame count, 4 more bytes, then 8-byte entries (u16 offset relative to the block start, u16 duration + flags, 4 bytes); each frame is u32 count followed by 4-byte sprites (x s8, y s8, first tile u8, attr u8: bits 7-6 size, 5-4 shape, 3 palette, 2-0 tile index bits 10-8). Sprite tiles are read in NDS-style 1D mapping, origin at the canvas centre. Unknown attribute bits are ignored.</p>
+  <p class="foot">Formats as decoded here. Images: u16 width, u16 height (bit 15 set = 4bpp), then 16 or 256 BGR555 colours, then 8×8 tiles (4bpp low nibble first); verified pixel-exact against the repo's PNG exports. .nanr: NNS KNBA block (sequences of frame entries, each pointing at a cell index). Cell bank: u16 count, count−1 u16 offsets (in u16 units), then per cell u16 OAM count and 3×u16 OBJ attributes per sprite (NDS layout). Rotation/scaling is ignored.</p>
 </div>
-
 <script>
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const DIM={'0,0':[8,8],'1,0':[16,16],'2,0':[32,32],'3,0':[64,64],'0,1':[16,8],'1,1':[32,8],'2,1':[32,16],'3,1':[64,32],'0,2':[8,16],'1,2':[8,32],'2,2':[16,32],'3,2':[32,64]};
-const S=128, CS=256; // canvas is 256x256 with origin at centre
-let pixes=new Map(),seqs=[],cur=null,pal=-1,fi=0,playing=true,last=0,acc=0,fcache=new Map(),seqName='';
+const files=new Map(); // name -> {name,b,dv,kind,img?,nanr?}
+let mode='img',cache=new Map(),cur=null,seq=null,cells=null,fi=0,playing=true,last=0,acc=0,bnd=null,curImg=null;
 
-function setMsg(t,c){ $('msg').innerHTML=t?`<div class="status ${c}"><span class="dot"></span><span>${esc(t)}</span></div>`:''; }
+function setMsg(t,c){$('msg').innerHTML=t?`<div class="status ${c}"><span class="dot"></span><span>${esc(t)}</span></div>`:'';}
 function base(n){return n.replace(/\.[^.]+$/,'');}
 function dl(blob,name){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),4000);}
 function toPng(c,name){c.toBlob(b=>dl(b,name),'image/png');}
+const mk=(w,h)=>{const c=document.createElement('canvas');c.width=Math.max(1,w);c.height=Math.max(1,h);return c;};
+const rgb=v=>[(v&31)*255/31|0,(v>>5&31)*255/31|0,(v>>10&31)*255/31|0];
+const names=()=>[...files.keys()].sort();
+const opt=(v,t,sel)=>`<option value="${esc(v)}"${sel?' selected':''}>${esc(t)}</option>`;
 
-function parsePix(b,name){
-  if(b.length<4)throw new Error('PIX file is too small.');
-  return{raw:b,name,banks:new Map()};
-}
-function normBase(n){return base(n).replace(/[ _]*\(?_?\d+_?\)?$/,'').toLowerCase();}
-function findPix(file){
-  const bn=base(file).toLowerCase();let hit=null;
-  for(const p of pixes.values())if(base(p.name).toLowerCase()===bn)return p;
-  for(const p of pixes.values())if(normBase(p.name)===normBase(file))hit=hit||p;
-  return hit||[...pixes.values()].pop()||null;
-}
-function unrle(b){ // 16-bit word RLE: control word bit15 = repeat next word, low 15 bits = count; otherwise copy that many literal words
-  const out=[];let i=0;
-  while(i+2<=b.length){
-    const c=b[i]|b[i+1]<<8;i+=2;const n=c&0x7fff;
-    if(c&0x8000){if(i+2>b.length)break;const lo=b[i],hi=b[i+1];i+=2;for(let k=0;k<n;k++)out.push(lo,hi);}
-    else{const e=Math.min(b.length,i+n*2);for(;i<e;i++)out.push(b[i]);}
-  }
-  return Uint8Array.from(out);
-}
-// A .pix file is a series of banks. Each starts with its own header (u32 palette count, N x 16 BGR555 colours)
-// followed by 4bpp tiles. Every animation block in the .seq names the byte offset of its bank.
-function getBank(a){
-  const px=a.pix,off=a.bank,key=off;
-  if(!px)throw new Error('No .pix file loaded for '+a.file+'.');
-  if(px.banks.has(key))return px.banks.get(key);
-  const b=px.raw,dv=new DataView(b.buffer,b.byteOffset,b.byteLength);
-  if(off+4>b.length)throw new Error('Bank offset 0x'+off.toString(16)+' is outside '+px.name+'.');
-  const h=dv.getUint32(off,true),n=h&0x7fffffff,comp=h>>>31;
-  if(n<1||n>64||off+4+n*32>b.length)throw new Error('No valid palette header at '+px.name+' offset 0x'+off.toString(16)+' (header '+h.toString(16)+').');
-  const pals=[];
-  for(let k=0;k<n;k++){const p=[];for(let i=0;i<16;i++){const v=dv.getUint16(off+4+k*32+i*2,true);p.push([(v&31)*255/31|0,(v>>5&31)*255/31|0,(v>>10&31)*255/31|0,i?255:0]);}pals.push(p);}
-  const start=off+4+n*32;
-  let end=b.length;for(const x of seqs)if(x.pix===px&&x.bank>off&&x.bank<end)end=x.bank;
-  let bank;
-  if(comp){
-    // compressed bank: u32 chunk offset table (relative to table start), one RLE-compressed chunk per sprite image
-    const cnt=dv.getUint32(start,true)/4|0;
-    if(cnt<1||cnt>4096||start+cnt*4>end)throw new Error('Bad chunk table in '+px.name+' at 0x'+start.toString(16)+'.');
-    const tab=[];for(let i=0;i<cnt;i++)tab.push(dv.getUint32(start+i*4,true));tab.push(end-start);
-    const chunks=[];let tot=0;
-    for(let i=0;i<cnt;i++){const c=unrle(b.subarray(start+tab[i],start+Math.max(tab[i],tab[i+1])));chunks.push(c);tot+=c.length;}
-    const data=new Uint8Array(tot);let p=0;for(const c of chunks){data.set(c,p);p+=c.length;}
-    bank={off,pals,chunks,comp:true,data,tiles:tot>>5};
-  }else bank={off,pals,data:b.subarray(start,end),tiles:Math.floor((end-start)/32)};
-  px.banks.set(key,bank);return bank;
-}
-function palFor(bank,a){ // pal=-1: per-sprite (attr bit 3), otherwise the chosen palette for everything
-  const i=pal>=0?pal:((a>>3)&1);return bank.pals[Math.min(i,bank.pals.length-1)];
-}
-function parseSeqAll(b){
-  const dv=new DataView(b.buffer,b.byteOffset,b.byteLength),anims=[];
-  let pos=0;
-  while(pos+8<=b.length){
-    const n=dv.getUint16(pos+2,true);
-    if(dv.getUint16(pos,true)!==0||n<1||pos+8+n*8>b.length)throw new Error('Animation #'+anims.length+' has an invalid header at 0x'+pos.toString(16)+'.');
-    const entries=[],frames=new Map();
-    for(let i=0;i<n;i++){
-      const o=dv.getUint16(pos+8+i*8,true),raw=dv.getUint16(pos+10+i*8,true),dur=raw&255;
-      if(pos+o+4>b.length)throw new Error('Animation #'+anims.length+', frame '+i+' points outside the file.');
-      entries.push({off:o,dur,flags:raw>>8,end:dur>=254});
-      if(!frames.has(o)){
-        const c=dv.getUint32(pos+o,true);
-        if(pos+o+4+c*4>b.length)throw new Error('Animation #'+anims.length+' has a sprite list that runs past the end of the file.');
-        const sp=[];
-        for(let j=0;j<c;j++){const q=pos+o+4+j*4,a=b[q+3];let x=b[q],y=b[q+1];if(x>127)x-=256;if(y>127)y-=256;
-          const dm=DIM[(a>>6)+','+((a>>4)&3)];sp.push({x,y,t:b[q+2],a,w:dm[0],h:dm[1]});}
-        frames.set(o,sp);
-      }
-    }
-    // frames are stored back to back after the table; the next animation starts at the first u32 that looks like a header (low u16 = 0, high u16 = 1..255)
-    let p=pos+8+n*8;
-    while(p+4<=b.length){
-      const u=dv.getUint32(p,true);
-      if(u!==0&&(u&0xffff)===0&&(u>>>16)<=255)break;
-      p+=4+u*4;
-    }
-    anims.push({entries,frames,bank:dv.getUint32(pos+4,true)});
-    pos=p;
-  }
-  return anims;
-}
-function drawFrame(ctx,sprites,bank,ox,oy){
-  const img=ctx.getImageData(0,0,CS,CS),px=img.data;
-  for(const s of sprites){
-    if(!s.w)continue;
-    s.tile=s.t|((s.a&7)<<8);s.pl=palFor(bank,s.a);
-    const tw=s.w>>3,th=s.h>>3;
-    for(let ty=0;ty<th;ty++)for(let tx=0;tx<tw;tx++){
-      let buf,bo;
-      if(bank.chunks){buf=bank.chunks[s.tile];bo=(ty*tw+tx)*32;}else{buf=bank.data;bo=(s.tile+ty*tw+tx)*32;}
-      if(!buf||bo+32>buf.length)continue;
-      for(let yy=0;yy<8;yy++)for(let xx=0;xx<4;xx++){
-        const byte=buf[bo+yy*4+xx];
-        for(let k=0;k<2;k++){
-          const v=k?byte>>4:byte&15; if(!v)continue;
-          const X=S+s.x+tx*8+xx*2+k+ox,Y=S+s.y+ty*8+yy+oy;
-          if(X<0||Y<0||X>=CS||Y>=CS)continue;
-          const c=s.pl[v],p=(Y*CS+X)*4;px[p]=c[0];px[p+1]=c[1];px[p+2]=c[2];px[p+3]=255;
-        }
-      }
+/* ---------- detection ---------- */
+function detect(f){
+  const b=f.b,dv=f.dv;
+  if(b.length>=4&&b[0]==82&&b[1]==78&&b[2]==65&&b[3]==78){try{f.nanr=parseNanr(f);f.kind='nanr';return;}catch(e){}}
+  if(b.length>=40){
+    const w=dv.getUint16(0,true),h0=dv.getUint16(2,true),p4=!!(h0&0x8000),h=h0&0x7fff;
+    if(w>=8&&h>=8&&w<=1024&&h<=1024&&w%8==0&&h%8==0){
+      const pl=p4?16:256,need=4+pl*2+(w*h>>(p4?1:0));
+      if(b.length>=need){f.kind='img';f.img={w,h,p4,pl};return;}
     }
   }
-  ctx.putImageData(img,0,0);
+  f.kind='raw';
 }
-function render(off){
-  const key=pal+':'+seqName+':'+off;
-  if(fcache.has(key))return fcache.get(key);
-  const c=document.createElement('canvas');c.width=c.height=CS;
-  drawFrame(c.getContext('2d'),cur.frames.get(off),getBank(cur),0,0);
-  fcache.set(key,c);return c;
+/* ---------- NANR / cells ---------- */
+function parseNanr(f){
+  const dv=f.dv,b=f.b;let p=dv.getUint16(12,true);
+  while(p+8<=b.length&&String.fromCharCode(b[p],b[p+1],b[p+2],b[p+3])!=='KNBA')p+=dv.getUint32(p+4,true)||8;
+  if(p+8>b.length)throw 0;
+  const o=p+8,ns=dv.getUint16(o,true),so=dv.getUint32(o+4,true),fo=dv.getUint32(o+8,true),dO=dv.getUint32(o+12,true);
+  const seqs=[];
+  for(let i=0;i<ns;i++){
+    const q=o+so+i*16,nf=dv.getUint16(q,true),loop=dv.getUint16(q+2,true),type=dv.getUint32(q+4,true),mode=dv.getUint32(q+8,true),first=dv.getUint32(q+12,true);
+    const fr=[];
+    for(let k=0;k<nf;k++){
+      const e=o+fo+first+k*8,d=dv.getUint32(e,true),dur=dv.getUint16(e+4,true);
+      fr.push({cell:dv.getUint16(o+dO+d,true),dur});
+    }
+    seqs.push({fr,loop,type,mode});
+  }
+  return seqs;
 }
-function bounds(a=cur){ // union bbox of all frames in current sequence, for cropping thumbs/strip
+function parseCells(f){
+  if(f._cells!==undefined)return f._cells;
+  let out=null;
+  try{
+    const dv=f.dv,n=dv.getUint16(0,true);
+    if(n>=1&&n<2000){
+      const offs=[n];for(let i=1;i<n;i++)offs.push(dv.getUint16(i*2,true));
+      out=offs.map(o=>{const c=dv.getUint16(o*2,true),s=[];if(o*2+2+c*6>f.b.length)throw 0;
+        for(let k=0;k<c;k++){const q=o*2+2+k*6;s.push([dv.getUint16(q,true),dv.getUint16(q+2,true),dv.getUint16(q+4,true)]);}return s;});
+    }
+  }catch(e){out=null;}
+  return f._cells=out;
+}
+function decodeOam(a){
+  const [a0,a1,a2]=a,d=DIM[(a1>>14)+','+(a0>>14)];
+  let x=a1&511,y=a0&255;if(x>255)x-=512;if(y>127)y-=256;
+  return{x,y,w:d[0],h:d[1],b8:(a0>>13)&1,hf:(a1>>12)&1,vf:(a1>>13)&1,t:a2&1023,pl:a2>>12};
+}
+function needTiles(cs){let m=0;for(const c of cs)for(const a of c){const s=decodeOam(a);m=Math.max(m,s.t+(s.w*s.h>>6));}return m;}
+
+/* ---------- palettes ---------- */
+function getPal(src,off){
+  if(src==='gray')return null;
+  const f=files.get(src);if(!f)return null;
+  let o=f.kind==='img'?4:off,n=f.kind==='img'?f.img.pl:Math.min(256,(f.b.length-o)>>1);
+  const a=[];for(let i=0;i<n&&o+i*2+2<=f.b.length;i++)a.push(rgb(f.dv.getUint16(o+i*2,true)));
+  return a;
+}
+function colour(pal,row,i,b8){
+  if(!pal)return b8?[i,i,i]:[i*17,i*17,i*17];
+  const c=pal[b8?i:row*16+i]||pal[i]||[255,0,255];return c;
+}
+function fillPalSelects(){
+  const ns=names().filter(n=>{const f=files.get(n);return f.kind==='img'||(f.kind==='raw'&&f.b.length<=4096&&f.b.length%2==0);});
+  const h=opt('gray','Grayscale',1)+ns.map(n=>opt(n,n+(files.get(n).kind==='img'?' (image palette)':''))).join('');
+  const keep=[$('psel').value,$('rpsel').value];
+  $('psel').innerHTML=h;$('rpsel').innerHTML=opt('gray','Grayscale',1)+opt('@self','This file (from offset)')+h.slice(h.indexOf('</option>')+9);
+  if([...$('psel').options].some(o=>o.value===keep[0]))$('psel').value=keep[0];
+  if([...$('rpsel').options].some(o=>o.value===keep[1]))$('rpsel').value=keep[1];
+  const rows=['<option value="-1">Auto (per sprite)</option>'].concat(Array.from({length:16},(_,i)=>`<option value="${i}">Row ${i}</option>`));
+  if(!$('prow').options.length)$('prow').innerHTML=rows.join('');
+  if(!$('rprow').options.length)$('rprow').innerHTML=Array.from({length:16},(_,i)=>`<option value="${i}">Row ${i}</option>`).join('');
+}
+
+/* ---------- IMAGES ---------- */
+function decodeImg(f){
+  if(f._cv)return f._cv;
+  const {w,h,p4,pl}=f.img,dv=f.dv,b=f.b,pal=[];
+  for(let i=0;i<pl;i++)pal.push(rgb(dv.getUint16(4+i*2,true)));
+  const c=mk(w,h),x=c.getContext('2d'),im=x.createImageData(w,h),d=im.data,s=4+pl*2,tw=w>>3;
+  let o=s;
+  for(let t=0;t<(w*h>>6);t++){const bx=(t%tw)*8,by=((t/tw)|0)*8;
+    for(let y=0;y<8;y++)for(let px=0;px<8;px++){
+      let v;if(p4){const q=b[s+((t*64+y*8+px)>>1)];v=(px&1)?q>>4:q&15;}else v=b[s+t*64+y*8+px];
+      const c2=pal[v],p=((by+y)*w+bx+px)*4;d[p]=c2[0];d[p+1]=c2[1];d[p+2]=c2[2];d[p+3]=255;}}
+  x.putImageData(im,0,0);return f._cv=c;
+}
+function showImg(n){
+  const f=files.get(n);if(!f||f.kind!=='img')return;
+  curImg=n;const c=decodeImg(f),z=+$('izoom').value,cv=$('icv');
+  cv.width=c.width*z;cv.height=c.height*z;const x=cv.getContext('2d');x.imageSmoothingEnabled=false;x.drawImage(c,0,0,cv.width,cv.height);
+  $('iinfo').textContent=n+' · '+f.img.w+'×'+f.img.h+' · '+(f.img.p4?'4bpp':'8bpp');
+  document.querySelectorAll('#igal .th').forEach(t=>t.classList.toggle('on',t.dataset.n===n));
+}
+function buildImgGallery(){
+  const g=$('igal');g.innerHTML='';const list=names().filter(n=>files.get(n).kind==='img');$('cImg').textContent='('+list.length+')';
+  let i=0;
+  list.forEach(n=>{const d=document.createElement('div');d.className='th';d.dataset.n=n;d.onclick=()=>showImg(n);
+    d.append(document.createTextNode(n.slice(0,12)));g.appendChild(d);});
+  (function chunk(){
+    for(let k=0;k<8&&i<list.length;k++,i++){
+      const n=list[i],f=files.get(n),c=decodeImg(f),t=mk(c.width,c.height);t.getContext('2d').drawImage(c,0,0);
+      t.style.width='auto';t.style.height='72px';t.style.aspectRatio=c.width+'/'+c.height;
+      const d=g.children[i];d.insertBefore(t,d.firstChild);
+    }
+    if(i<list.length)setTimeout(chunk,0);
+  })();
+  if(list.length)showImg(curImg&&files.has(curImg)?curImg:list[0]);
+}
+
+/* ---------- ANIMATIONS ---------- */
+function fillAnimSelects(){
+  const nan=names().filter(n=>files.get(n).kind==='nanr'),oth=names().filter(n=>files.get(n).kind==='raw');
+  $('cAnim').textContent='('+nan.length+')';
+  const k=$('nsel').value;
+  $('nsel').innerHTML=nan.map(n=>opt(n,n)).join('');
+  if(nan.includes(k))$('nsel').value=k;
+  const h=oth.map(n=>opt(n,n+' ('+files.get(n).b.length+' B)')).join('');
+  $('csel').innerHTML=h;$('tsel').innerHTML=h;
+  $('rsel').innerHTML=opt('','—')+oth.concat(names().filter(n=>files.get(n).kind==='img')).sort().map(n=>opt(n,n+' ('+files.get(n).b.length+' B)')).join('');
+}
+function pickNanr(n,auto=true){
+  const f=files.get(n);if(!f)return;
+  $('nsel').value=n;seq=f.nanr;
+  $('qsel').innerHTML=seq.map((s,i)=>opt(i,'Sequence '+i+' ('+s.fr.length+' frames)')).join('');
+  if(auto){ // guess cell bank and tiles from neighbours in file order
+    const all=names(),i=all.indexOf(n),isR=x=>files.get(x)&&files.get(x).kind==='raw';
+    let ci=-1;for(let j=i+1;j<Math.min(all.length,i+4);j++){if(files.get(all[j]).kind==='nanr')break;if(isR(all[j])&&parseCells(files.get(all[j]))){ci=j;break;}}
+    if(ci<0)for(let j=i-1;j>=Math.max(0,i-4);j--)if(isR(all[j])&&parseCells(files.get(all[j]))){ci=j;break;}
+    if(ci>=0){
+      $('csel').value=all[ci];const need=needTiles(parseCells(files.get(all[ci])))*32;
+      const cand=[];for(let j=ci+1;j<Math.min(all.length,ci+4)&&files.get(all[j]).kind!=='nanr';j++)cand.push(all[j]);
+      for(let j=i-1;j>=Math.max(0,i-5);j--)if(j!==ci&&isR(all[j]))cand.push(all[j]);
+      const pick=cand.find(x=>isR(x)&&files.get(x).b.length>=need)||cand.find(isR);
+      if(pick)$('tsel').value=pick;
+    }
+  }
+  pickSeq(0);
+}
+function animReady(){return seq&&seq.length&&files.get($('csel').value)&&files.get($('tsel').value);}
+function pickSeq(i){
+  $('qsel').value=i;fi=0;acc=0;cache.clear();cur=seq?seq[i]:null;cells=null;
+  const cf=files.get($('csel').value);cells=cf?parseCells(cf):null;
+  if(!cur||!cells){$('tinfo').textContent=cells?'':'Selected cell bank could not be parsed';const x=$('cv');x.width=x.height=1;$('tl').innerHTML='';return;}
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
-  for(const sp of a.frames.values())for(const s of sp){if(!s.w)continue;x0=Math.min(x0,s.x);y0=Math.min(y0,s.y);x1=Math.max(x1,s.x+s.w);y1=Math.max(y1,s.y+s.h);}
-  if(x0>x1)return{x:0,y:0,w:16,h:16};
-  return{x:S+x0,y:S+y0,w:x1-x0,h:y1-y0};
+  for(const e of cur.fr){const c=cells[e.cell];if(!c)continue;for(const a of c){const s=decodeOam(a);if(!s.w)continue;x0=Math.min(x0,s.x);y0=Math.min(y0,s.y);x1=Math.max(x1,s.x+s.w);y1=Math.max(y1,s.y+s.h);}}
+  bnd=x0>x1?{x:0,y:0,w:16,h:16}:{x:x0,y:y0,w:x1-x0,h:y1-y0};
+  const total=cur.fr.reduce((a,e)=>a+e.dur,0);
+  $('tinfo').textContent=cur.fr.length+' frames · '+cells.length+' cells · '+(total/60).toFixed(2)+' s';
+  buildTimeline();show();
 }
-
-function show(){
-  const e=cur.entries[fi],c=render(e.off),z=+$('zoom').value,cv=$('cv');
-  cv.width=CS*z;cv.height=CS*z;
-  const ctx=cv.getContext('2d');ctx.imageSmoothingEnabled=false;
-  ctx.clearRect(0,0,cv.width,cv.height);
-  ctx.drawImage(c,0,0,cv.width,cv.height);
-  if($('boxes').checked){
-    ctx.lineWidth=1;ctx.strokeStyle='#e0245e';
-    for(const s of cur.frames.get(e.off)){ctx.strokeRect((S+s.x)*z+.5,(S+s.y)*z+.5,s.w*z-1,s.h*z-1);}
-    ctx.strokeStyle='rgba(60,120,255,.7)';ctx.beginPath();ctx.moveTo(S*z,0);ctx.lineTo(S*z,cv.height);ctx.moveTo(0,S*z);ctx.lineTo(cv.width,S*z);ctx.stroke();
+function render(ci){
+  const key=ci;if(cache.has(key))return cache.get(key);
+  const c=mk(bnd.w,bnd.h),x=c.getContext('2d'),im=x.createImageData(bnd.w,bnd.h),d=im.data;
+  const tf=files.get($('tsel').value),tb=tf?tf.b:new Uint8Array(0),pal=getPal($('psel').value,0),row=+$('prow').value,
+    twoD=$('map').value==='2d',step=+$('step').value;
+  for(const a of cells[ci]||[]){
+    const s=decodeOam(a);if(!s.w)continue;
+    const tw=s.w>>3,th=s.h>>3,unit=s.b8?64:32,pr=row>=0?row:s.pl,stride=twoD?32:tw;
+    for(let py=0;py<s.h;py++)for(let px=0;px<s.w;px++){
+      const sx=s.hf?s.w-1-px:px,sy=s.vf?s.h-1-py:py,tx=sx>>3,ty=sy>>3;
+      const o=s.t*32*step+(ty*stride+tx)*unit+(sy&7)*(s.b8?8:4);
+      let v;if(s.b8){v=tb[o+(sx&7)];}else{const q=tb[o+((sx&7)>>1)];v=(sx&1)?q>>4:q&15;}
+      if(!v)continue;
+      const X=s.x-bnd.x+px,Y=s.y-bnd.y+py;if(X<0||Y<0||X>=bnd.w||Y>=bnd.h)continue;
+      const col=colour(pal,pr,v,s.b8),p=(Y*bnd.w+X)*4;d[p]=col[0];d[p+1]=col[1];d[p+2]=col[2];d[p+3]=255;
+    }
   }
+  x.putImageData(im,0,0);cache.set(key,c);return c;
+}
+function show(){
+  if(!cur||!cells||!cur.fr.length)return;
+  const e=cur.fr[fi],c=render(e.cell),z=+$('zoom').value,cv=$('cv');
+  cv.width=c.width*z;cv.height=c.height*z;
+  const x=cv.getContext('2d');x.imageSmoothingEnabled=false;x.clearRect(0,0,cv.width,cv.height);x.drawImage(c,0,0,cv.width,cv.height);
+  const cell=cells[e.cell]||[];
+  if($('boxes').checked){x.lineWidth=1;x.strokeStyle='#e0245e';for(const a of cell){const s=decodeOam(a);x.strokeRect((s.x-bnd.x)*z+.5,(s.y-bnd.y)*z+.5,s.w*z-1,s.h*z-1);}}
   $('scrub').value=fi;
-  document.querySelectorAll('.th').forEach((t,i)=>t.classList.toggle('on',i===fi));
-  const sp=cur.frames.get(e.off);
-  $('meta').innerHTML=[['Frame',(fi+1)+' / '+cur.entries.length],['Duration',e.end?'end marker':e.dur+' ticks ('+(e.dur/60*1000|0)+' ms)'],['Sprites',sp.length],['Flags','0x'+e.flags.toString(16)],['Data offset','0x'+e.off.toString(16)]]
+  document.querySelectorAll('#tl .th').forEach((t,i)=>t.classList.toggle('on',i===fi));
+  $('meta').innerHTML=[['Frame',(fi+1)+' / '+cur.fr.length],['Duration',e.dur+' ticks ('+(e.dur/60*1000|0)+' ms)'],['Cell',e.cell+(cells[e.cell]?'':' (missing)')],['Sprites',cell.length],['Size',bnd.w+'×'+bnd.h],['Mode',cur.mode+' / type 0x'+cur.type.toString(16)]]
     .map(([l,v])=>`<div class="metric"><div class="metric-label">${l}</div><div class="metric-val">${esc(v)}</div></div>`).join('');
 }
 function buildTimeline(){
-  const b=bounds(),tl=$('tl');tl.innerHTML='';
-  cur.entries.forEach((e,i)=>{
-    const th=document.createElement('div');th.className='th';
-    const c=document.createElement('canvas');c.width=b.w;c.height=b.h;
-    c.getContext('2d').drawImage(render(e.off),b.x,b.y,b.w,b.h,0,0,b.w,b.h);
-    c.style.aspectRatio=b.w+'/'+b.h;c.style.width='auto';c.style.height='64px';
-    th.append(c,document.createTextNode(i+' · '+(e.end?'end':e.dur)));
-    th.onclick=()=>{fi=i;acc=0;show();};tl.appendChild(th);
+  const tl=$('tl');tl.innerHTML='';
+  cur.fr.forEach((e,i)=>{
+    const th=document.createElement('div');th.className='th';const c=render(e.cell),t=mk(c.width,c.height);t.getContext('2d').drawImage(c,0,0);
+    t.style.width='auto';t.style.height='64px';t.style.aspectRatio=c.width+'/'+c.height;
+    th.append(t,document.createTextNode(i+' · '+e.dur));th.onclick=()=>{fi=i;acc=0;show();};tl.appendChild(th);
   });
-  $('scrub').max=cur.entries.length-1;
+  $('scrub').max=Math.max(0,cur.fr.length-1);
 }
-function fillPal(s){
-  const n=getBank(s).pals.length;
-  $('palsel').innerHTML='<option value="-1">Auto (per sprite)</option>'+Array.from({length:n},(_,i)=>`<option value="${i}">Palette ${i} only</option>`).join('');
-  if(pal>=n)pal=-1;$('palsel').value=pal;
+function buildAnimGallery(){
+  const g=$('agal');g.innerHTML='';const list=names().filter(n=>files.get(n).kind==='nanr').slice(0,300);
+  list.forEach(n=>{const d=document.createElement('div');d.className='th';d.textContent=n.slice(0,10);d.onclick=()=>{pickNanr(n);playing=true;$('play').textContent='Pause';window.scrollTo({top:0,behavior:'smooth'});};g.appendChild(d);});
 }
-function pickSeq(i){
-  const s=seqs[i];cur=s;seqName=s.name;$('seqsel').value=i;fillPal(s);document.querySelectorAll('.ga').forEach((g,k)=>g.classList.toggle('on',k===i));fi=0;acc=0;fcache.clear();
-  drawSheet();buildTimeline();show();
-  const total=s.entries.filter(e=>!e.end).reduce((a,e)=>a+e.dur,0);
-  $('tinfo').textContent=s.entries.length+' frames · '+s.frames.size+' unique · '+(total/60).toFixed(2)+' s';
-}
-function setBg(){
-  const v=$('bg').value,st=$('stage');
-  st.classList.toggle('solid',v==='solid');
-  st.style.background=(v==='check'||v==='solid')?'':v;
-  if(v!=='check'&&v!=='solid')st.style.backgroundImage='none';
-}
-function drawSheet(){
-  const bk=getBank(cur),W=32,H=Math.ceil(bk.tiles/W),c=$('sheet');c.width=W*8;c.height=H*8;
-  const ctx=c.getContext('2d'),img=ctx.createImageData(c.width,c.height),pl=bk.pals[Math.min(Math.max(pal,0),bk.pals.length-1)];
-  for(let t=0;t<bk.tiles;t++)for(let y=0;y<8;y++)for(let x=0;x<4;x++){
-    const b=bk.data[t*32+y*4+x];
-    for(let k=0;k<2;k++){const col=pl[k?b>>4:b&15],X=(t%W)*8+x*2+k,Y=((t/W)|0)*8+y,p=(Y*c.width+X)*4;img.data.set(col,p);}
-  }
-  ctx.putImageData(img,0,0);c.style.width=c.width*2+'px';
-  $('sheetinfo').textContent=(bk.comp?'compressed bank':'bank')+' @0x'+bk.off.toString(16)+' · '+bk.tiles+' tiles · '+bk.pals.length+' palette'+(bk.pals.length>1?'s':'');
-}
-
-function buildGallery(){
-  const g=$('gallery');g.innerHTML='';
-  seqs.forEach((a,i)=>{
-    const b=bounds(a),full=document.createElement('canvas');full.width=full.height=CS;
-    drawFrame(full.getContext('2d'),a.frames.get(a.entries[0].off),getBank(a),0,0);
-    const c=document.createElement('canvas');c.width=b.w;c.height=b.h;c.getContext('2d').drawImage(full,b.x,b.y,b.w,b.h,0,0,b.w,b.h);
-    const d=document.createElement('div');d.className='th ga';
-    c.style.aspectRatio=b.w+'/'+b.h;c.style.width='auto';c.style.height='72px';
-    d.append(c,document.createTextNode((seqs.some(x=>x.file!==a.file)?base(a.file)+' ':'')+'#'+a.idx+' · '+a.entries.length+'f'));
-    d.onclick=()=>{$('seqsel').value=i;pickSeq(i);playing=true;$('play').textContent='Pause';window.scrollTo({top:0,behavior:'smooth'});};
-    g.appendChild(d);
-  });
-}
+function refreshAnim(){cache.clear();const i=+$('qsel').value||0;pickSeq(i);}
 function tick(ts){
   requestAnimationFrame(tick);
-  if(!cur||!playing){last=ts;return;}
+  if(mode!=='anim'||!cur||!cells||!playing||!cur.fr.length){last=ts;return;}
   acc+=(ts-last)*60/1000*(+$('speed').value);last=ts;
-  let guard=0;
-  while(guard++<8){
-    const e=cur.entries[fi];
-    if(e.end){ if($('loop').checked){fi=0;acc=0;show();} else {acc=0;} break; }
-    if(acc<Math.max(e.dur,1))break;
-    acc-=Math.max(e.dur,1);
-    fi++;
-    if(fi>=cur.entries.length){fi=$('loop').checked?0:cur.entries.length-1;}
-    if(cur.entries[fi].end&&$('loop').checked){fi=0;}
+  let g=0;
+  while(g++<8){
+    const e=cur.fr[fi];if(acc<Math.max(e.dur,1))break;
+    acc-=Math.max(e.dur,1);fi++;
+    if(fi>=cur.fr.length){if($('loop').checked)fi=0;else{fi=cur.fr.length-1;playing=false;$('play').textContent='Play';}}
     show();
   }
 }
-function step(d){playing=false;$('play').textContent='Play';fi=(fi+d+cur.entries.length)%cur.entries.length;show();}
+function step(d){playing=false;$('play').textContent='Play';fi=(fi+d+cur.fr.length)%cur.fr.length;show();}
+function setBg(sel,st){const v=$(sel).value,s=$(st);s.classList.toggle('solid',v==='solid');s.style.background=(v==='check'||v==='solid')?'':v;if(v!=='check'&&v!=='solid')s.style.backgroundImage='none';}
 
-async function loadFiles(files){
-  setMsg('');
-  let warn=[];
-  for(const f of files){
-    const n=f.name.toLowerCase(),b=new Uint8Array(await f.arrayBuffer());
-    try{
-      if(n.endsWith('.pix')){pixes.set(f.name,parsePix(b,f.name));fcache.clear();}
-      else if(n.endsWith('.seq')){const all=parseSeqAll(b);seqs=seqs.filter(x=>x.file!==f.name);all.forEach((a,k)=>{a.file=f.name;a.idx=k;a.name=base(f.name)+'_anim'+String(k).padStart(2,'0');seqs.push(a);});}
-      else warn.push(f.name+': not a .pix or .seq file');
-    }catch(e){warn.push(f.name+': '+e.message);}
+/* ---------- RAW ---------- */
+function showRaw(){
+  const f=files.get($('rsel').value);if(!f){$('rcv').width=$('rcv').height=1;$('rinfo').textContent='';return;}
+  const b8=$('rbpp').value==='8',skip=+$('rskip').value||0,tpr=+$('rw').value,lin=$('rlay').value==='lin',z=+$('rzoom').value,
+    ps=$('rpsel').value,pal=getPal(ps==='@self'?f.name:ps,+$('rpoff').value||0),row=+$('rprow').value;
+  const bytes=f.b.length-skip,tsz=b8?64:32,nt=Math.max(0,Math.floor(bytes/tsz)),W=tpr*8;
+  let H;
+  if(lin){const bpr=b8?W:W>>1;H=Math.ceil(bytes/bpr);}else H=Math.ceil(nt/tpr)*8;
+  const c=$('rcv');c.width=W;c.height=Math.max(8,H);const x=c.getContext('2d'),im=x.createImageData(c.width,c.height),d=im.data;
+  const n=lin?bytes:nt*tsz;
+  for(let i=0;i<(lin?bytes:nt*tsz);i++){
+    const by=f.b[skip+i];
+    for(let k=0;k<(b8?1:2);k++){
+      const v=b8?by:(k?by>>4:by&15);if(!v)continue;let X,Y;
+      if(lin){const px=(b8?i:i*2+k);X=px%W;Y=(px/W)|0;}
+      else{const px=b8?i:i*2+k,t=(px/64)|0,r=px%64;X=(t%tpr)*8+(r&7);Y=((t/tpr)|0)*8+(r>>3);}
+      if(Y>=c.height)continue;
+      const col=colour(pal,row,v,b8),p=(Y*W+X)*4;d[p]=col[0];d[p+1]=col[1];d[p+2]=col[2];d[p+3]=255;
+    }
   }
-  if(warn.length)setMsg(warn.join(' · '),'err');
-  if(!pixes.size||!seqs.length){
-    if(!warn.length)setMsg(!pixes.size?'Now add the matching .pix file.':'Now add a .seq file.','warn');
-    return;
-  }
-  for(const a of seqs)a.pix=findPix(a.file);
-  $('viewer').style.display='';
-  // prefer seq whose base name matches pix, else first
-  seqs.sort((a,b)=>a.file.localeCompare(b.file)||a.idx-b.idx);
-  $('seqsel').innerHTML=seqs.map((s,i)=>`<option value="${i}">${esc(s.file)} · Animation ${s.idx} (${s.entries.length} frames)</option>`).join('');
-  const lastSeq=[...files].map(f=>f.name).filter(n=>/\.seq$/i.test(n)).pop();let pi=seqs.findIndex(s=>s.file===lastSeq);if(pi<0)pi=0;
-  try{buildGallery();pickSeq(pi);}catch(e){setMsg(e.message,'err');return;}setBg();playing=true;$('play').textContent='Pause';
-  if(!warn.length)setMsg('Loaded '+pixes.size+' .pix + '+seqs.length+' animation'+(seqs.length>1?'s':'')+'.','ok');
+  x.putImageData(im,0,0);c.style.width=W*z+'px';c.style.height=c.height*z+'px';
+  $('rinfo').textContent=f.name+' · '+nt+' tiles · '+W+'×'+c.height;
 }
 
+/* ---------- loading / wiring ---------- */
+async function loadFiles(list){
+  setMsg('');const warn=[];
+  for(const f of list){
+    if(/\.png$/i.test(f.name)){continue;}
+    if(f.size>40e6){warn.push(f.name+': too large, skipped');continue;}
+    const b=new Uint8Array(await f.arrayBuffer()),o={name:f.name,b,dv:new DataView(b.buffer,b.byteOffset,b.byteLength)};
+    detect(o);files.set(f.name,o);
+  }
+  if(!files.size){setMsg(warn.join(' · ')||'No usable files (PNG files are ignored; load the .bin / .nanr files).','warn');return;}
+  $('viewer').classList.remove('hide');cache.clear();
+  fillPalSelects();fillAnimSelects();buildImgGallery();buildAnimGallery();
+  const nn=names().filter(n=>files.get(n).kind==='nanr'),ni=names().filter(n=>files.get(n).kind==='img').length;
+  if(nn.length)pickNanr(nn.includes($('nsel').value)&&$('nsel').value||nn[0],true);
+  if(!ni&&nn.length)setMode('anim');else if(!ni&&!nn.length)setMode('raw');
+  setBg('ibg','istage');setBg('bg','stage');showRaw();
+  const k=[...files.values()],cnt=t=>k.filter(x=>x.kind===t).length;
+  setMsg((warn.length?warn.join(' · ')+' — ':'')+'Loaded '+k.length+' files: '+cnt('img')+' images, '+cnt('nanr')+' .nanr, '+cnt('raw')+' raw.',warn.length?'warn':'ok');
+}
+function setMode(m){mode=m;document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.m===m));['img','anim','raw'].forEach(k=>$('m-'+k).classList.toggle('hide',k!==m));if(m==='anim'&&cur)show();}
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>setMode(t.dataset.m));
 const drop=$('drop'),fin=$('fin');
 drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('dragover');});
 drop.addEventListener('dragleave',()=>drop.classList.remove('dragover'));
 drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('dragover');if(e.dataTransfer.files.length)loadFiles([...e.dataTransfer.files]);});
 fin.addEventListener('change',()=>{if(fin.files.length)loadFiles([...fin.files]);fin.value='';});
-$('seqsel').onchange=()=>pickSeq(+$('seqsel').value);
-$('pa').onclick=()=>pickSeq((+$('seqsel').value-1+seqs.length)%seqs.length);
-$('na').onclick=()=>pickSeq((+$('seqsel').value+1)%seqs.length);
-$('palsel').onchange=()=>{pal=+$('palsel').value;fcache.clear();drawSheet();buildGallery();buildTimeline();show();};
-$('zoom').onchange=show;$('speed').onchange=()=>{};$('bg').onchange=setBg;$('boxes').onchange=show;
+$('izoom').onchange=()=>showImg(curImg);$('ibg').onchange=()=>setBg('ibg','istage');
+$('idl').onclick=()=>{if(curImg)toPng(decodeImg(files.get(curImg)),base(curImg)+'.png');};
+$('nsel').onchange=()=>pickNanr($('nsel').value,true);
+$('qsel').onchange=()=>pickSeq(+$('qsel').value);
+['csel','tsel','psel','prow','map','step'].forEach(id=>$(id).onchange=refreshAnim);
+$('zoom').onchange=show;$('boxes').onchange=show;$('bg').onchange=()=>setBg('bg','stage');
 $('play').onclick=()=>{playing=!playing;$('play').textContent=playing?'Pause':'Play';acc=0;};
-$('prev').onclick=()=>step(-1);$('next').onclick=()=>step(1);
+$('prev').onclick=()=>cur&&step(-1);$('next').onclick=()=>cur&&step(1);
+const nanrs=()=>names().filter(n=>files.get(n).kind==='nanr');
+$('pa').onclick=()=>{const l=nanrs(),i=l.indexOf($('nsel').value);if(l.length)pickNanr(l[(i-1+l.length)%l.length]);};
+$('na').onclick=()=>{const l=nanrs(),i=l.indexOf($('nsel').value);if(l.length)pickNanr(l[(i+1)%l.length]);};
 $('scrub').oninput=()=>{playing=false;$('play').textContent='Play';fi=+$('scrub').value;show();};
-$('dlframe').onclick=()=>{const b=bounds(),c=document.createElement('canvas');c.width=b.w;c.height=b.h;c.getContext('2d').drawImage(render(cur.entries[fi].off),b.x,b.y,b.w,b.h,0,0,b.w,b.h);toPng(c,base(seqName)+'_f'+String(fi).padStart(2,'0')+'.png');};
-$('dlall').onclick=()=>{const b=bounds(),n=cur.entries.length,c=document.createElement('canvas');c.width=b.w*n;c.height=b.h;const x=c.getContext('2d');
-  cur.entries.forEach((e,i)=>x.drawImage(render(e.off),b.x,b.y,b.w,b.h,i*b.w,0,b.w,b.h));toPng(c,base(seqName)+'_strip.png');};
-$('dlsheet').onclick=()=>toPng($('sheet'),base(cur.pix.name)+'_tiles.png');
+$('dlframe').onclick=()=>{if(cur)toPng(render(cur.fr[fi].cell),base($('nsel').value)+'_s'+$('qsel').value+'_f'+String(fi).padStart(2,'0')+'.png');};
+$('dlall').onclick=()=>{if(!cur)return;const n=cur.fr.length,c=mk(bnd.w*n,bnd.h),x=c.getContext('2d');cur.fr.forEach((e,i)=>x.drawImage(render(e.cell),i*bnd.w,0));toPng(c,base($('nsel').value)+'_s'+$('qsel').value+'_strip.png');};
+['rsel','rbpp','rlay','rw','rskip','rpsel','rpoff','rprow','rzoom'].forEach(id=>$(id).onchange=showRaw);
+$('rdl').onclick=()=>toPng($('rcv'),base($('rsel').value||'tiles')+'_tiles.png');
 requestAnimationFrame(tick);
 </script>
 </body>
